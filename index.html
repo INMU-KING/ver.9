@@ -1,0 +1,2978 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>カントリーボール・スマッシュDX+ 世紀末ウェポン大乱闘版</title>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #111a1e; display: flex; justify-content: center; align-items: center; height: 100vh; color: white; font-family: 'Arial Black', sans-serif; user-select: none; }
+        #game-container { position: relative; }
+        canvas { border: 4px solid #2c3e50; background: linear-gradient(to bottom, #111c24 0%, #000000 100%); border-radius: 8px; box-shadow: 0 15px 40px rgba(0,0,0,0.9); }
+        
+        #start-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(10, 15, 20, 0.96); display: flex; flex-direction: column;
+            justify-content: center; align-items: center; z-index: 10; border-radius: 8px; padding-top: 20px; box-sizing: border-box; overflow-y: auto;
+        }
+        
+        /* 🔴 メインメニュー用スタイル */
+        #main-menu-container {
+            display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%;
+        }
+        .main-title { font-size: 38px; margin: 0 0 40px 0; color: #f1c40f; text-shadow: 3px 3px #000; text-align: center; line-height: 1.3;}
+        .main-title span { font-size: 24px; color: #e74c3c; }
+        .menu-grid { display: flex; gap: 20px; flex-wrap: wrap; justify-content: center; max-width: 700px; }
+        .menu-btn {
+            background: #2c3e50; color: white; border: 2px solid #34495e; padding: 20px; font-size: 22px; border-radius: 12px;
+            cursor: pointer; font-weight: bold; width: 260px; text-align: center; transition: 0.2s; box-shadow: 0 8px 15px rgba(0,0,0,0.5); font-family: 'Arial Black', sans-serif;
+        }
+        .menu-btn span { font-size: 13px; color: #bdc3c7; display: block; margin-top: 8px; }
+        .start-game-btn { background: #e74c3c; border-color: #c0392b; color: white;}
+        .start-game-btn:hover { background: #c0392b; transform: translateY(-3px); box-shadow: 0 12px 20px rgba(0,0,0,0.6); }
+        .disabled-btn { background: #1a252f; color: #7f8c8d; border-color: #2c3e50; }
+        .disabled-btn:hover { background: #2c3e50; }
+        
+        /* 🔴 従来の設定メニュースタイル */
+        #setup-menu { display: none; flex-direction: column; align-items: center; width: 100%; justify-content: flex-start; }
+        .select-group { display: flex; flex-direction: column; gap: 10px; margin: 15px; width: 90%; max-width: 850px; background: rgba(255,255,255,0.02); padding: 15px; border-radius: 8px; border: 1px solid #2c3e50; }
+        .global-settings { display: flex; justify-content: center; gap: 15px; background: rgba(231, 76, 60, 0.1); padding: 10px; border-radius: 6px; border: 1px solid #e74c3c; width: 100%; box-sizing: border-box; flex-wrap: wrap;}
+        .player-slots-container { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; width: 100%; }
+        .player-row { display: flex; align-items: center; justify-content: space-between; background: rgba(255,255,255,0.05); padding: 8px 12px; border-radius: 6px; border: 1px solid #455a64; }
+        .player-row label { font-weight: bold; font-size: 14px; }
+        select { font-size: 13px; padding: 4px 6px; background: #2c3e50; color: white; border: 1px solid #bdc3c7; border-radius: 4px; font-weight: bold; cursor: pointer; }
+        
+        #start-btn { font-size: 26px; padding: 12px 60px; background: #e74c3c; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; box-shadow: 0 5px 0 #c0392b; transition: 0.1s; margin: 15px 0; }
+        #start-btn:active { transform: translateY(5px); box-shadow: none; }
+        .hint-text { font-size: 12px; color: #bdc3c7; text-align: center; line-height: 1.5; margin-bottom: 20px; }
+        .highlight { color: #f1c40f; }
+        #result-text { font-size: 44px; color: #f1c40f; font-weight: bold; text-shadow: 3px 3px #000; display: none; text-align: center; margin-bottom: 10px;}
+        .back-btn { background: none; border: none; color: #bdc3c7; text-decoration: underline; cursor: pointer; font-size: 14px; margin-bottom: 10px; }
+    </style>
+    <script src="https://unpkg.com/peerjs@1.5.5/dist/peerjs.min.js"></script>
+</head>
+<body>
+<!-- Supabase authentication gate: configure SUPABASE_URL and SUPABASE_ANON_KEY below. -->
+<div id="auth-gate" style="position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#101820,#182b3a);font-family:Arial,sans-serif;padding:18px;box-sizing:border-box;">
+  <form id="auth-form" style="width:min(100%,420px);box-sizing:border-box;background:#0c141b;border:2px solid #3498db;border-radius:16px;padding:26px;color:#ecf0f1;box-shadow:0 18px 50px #0009;">
+    <h1 style="color:#f1c40f;text-align:center;font-size:24px;margin:0 0 8px">🔒 友達限定ログイン</h1>
+    <p style="font-size:14px;line-height:1.6;color:#bdc3c7">許可されたメールアドレスでログインしてください。新規登録はこの画面からできません。</p>
+    <label for="auth-email" style="display:block;margin-top:18px;font-size:14px">メールアドレス</label>
+    <input id="auth-email" type="email" autocomplete="username" required style="width:100%;box-sizing:border-box;margin-top:6px;padding:12px;border-radius:6px;border:1px solid #5d7180;background:#243746;color:white;font-size:16px">
+    <label for="auth-password" style="display:block;margin-top:14px;font-size:14px">パスワード</label>
+    <input id="auth-password" type="password" autocomplete="current-password" required style="width:100%;box-sizing:border-box;margin-top:6px;padding:12px;border-radius:6px;border:1px solid #5d7180;background:#243746;color:white;font-size:16px">
+    <button id="auth-submit" type="submit" style="width:100%;margin-top:20px;padding:13px;border:0;border-radius:7px;background:#2980b9;color:white;font-size:17px;font-weight:bold;cursor:pointer">ログイン</button>
+    <div id="auth-message" role="status" style="white-space:pre-wrap;min-height:36px;margin-top:14px;font-size:13px;line-height:1.5;color:#f5cba7"></div>
+    <p style="font-size:12px;color:#85929e;line-height:1.5;margin-bottom:0">アカウントは管理者から招待された人だけが使えます。ログイン設定が完了するまではゲームを開始できません。</p>
+  </form>
+</div>
+<div id="auth-userbar" style="display:none;position:fixed;top:6px;right:8px;z-index:1000;background:#17232d;color:#fff;border:1px solid #5d7180;border-radius:8px;padding:6px 8px;font:12px Arial,sans-serif;align-items:center;gap:8px;max-width:95vw">
+ <span id="auth-user-email" style="max-width:55vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
+ <button id="auth-logout" type="button" style="background:#922b21;color:white;border:0;border-radius:5px;padding:6px 8px;cursor:pointer">ログアウト</button>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<div id="game-container">
+    <div id="start-overlay">
+        <!-- メインメニュー画面 -->
+        <div id="main-menu-container">
+            <h1 class="main-title">⚔️ カントリーボール・スマッシュDX+ ⚔️<br><span>〜 世紀末ウェポン大乱闘版 〜</span></h1>
+            <div id="result-text" style="display: none; margin-bottom: 30px;"></div>
+            <div class="menu-grid">
+                <button class="menu-btn start-game-btn" onclick="openLocalBattle()">🎮 ローカル大乱闘<span>(CPU戦 / 画面共有マルチ)</span></button>
+                <button class="menu-btn" onclick="openOnlineMenu()">🌐 オンライン対戦<span>(部屋コードで友達と合流)</span></button>
+                <button class="menu-btn" onclick="openGiftMenu()">🎁 ギフト機能<span>(イベント・報酬確認)</span></button>
+                <button class="menu-btn" onclick="openGachaMenu()">💰 ショップ・ガチャ<span>(1回 1000ペニヒ)</span></button>
+            </div>
+        </div>
+
+        <div id="online-menu" style="display:none; flex-direction:column; align-items:center; gap:12px; width:min(90%,520px); padding:22px; box-sizing:border-box; background:#101820; border:2px solid #3498db; border-radius:12px; margin:auto;">
+          <h2 style="color:#f1c40f;margin:0">🌐 オンライン対戦</h2>
+          <p style="font-size:14px;color:#bdc3c7;text-align:center;margin:0">部屋を作った人がコードを友達に送り、友達はコードを入力して参加します。</p>
+          <label style="width:100%;font-size:14px">部屋コード（自分で決められる・英数字6文字）<input id="online-room-code" maxlength="6" autocomplete="off" placeholder="好きな英数字6文字" style="box-sizing:border-box;width:100%;padding:12px;margin-top:5px;background:#243746;color:white;border:1px solid #5d7180;border-radius:5px;font-size:20px;text-transform:uppercase;letter-spacing:3px"></label>
+          <div id="online-lobby-picks" style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center;width:100%;padding:10px;background:#17232d;border-radius:8px;box-sizing:border-box">
+            <label style="font-size:13px">自分のキャラ <select id="online-my-char"></select></label>
+            <label id="online-cpu-char-wrap" style="font-size:13px;display:none">ホスト：CPUキャラ <select id="online-cpu-char"></select></label>
+          </div>
+          <div id="online-lobby-status" style="font-size:13px;color:#a9dfbf;text-align:center">部屋に入ったら自分のキャラを選択できます。ホストはCPUキャラも選べます。</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;width:100%;font-size:13px">
+            <label>ステージ <select id="online-stage-select"><option value="random">ランダム</option><option value="splatoon">インクバトル風</option><option value="mariokart">カートサーキット風</option><option value="zelda">古代神殿風</option><option value="battle">戦場</option><option value="flat">平原</option><option value="islands">空中浮島</option><option value="minecraft">まいくら風</option><option value="castle">古城要塞</option><option value="volcano">決戦の火山</option><option value="space">宇宙基地</option><option value="city">摩天楼ビル</option><option value="shrine">極東神社</option><option value="submarine">鋼鉄の潜水艦</option></select></label>
+            <label>CPU人数 <select id="online-cpu-count"><option value="0">0</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option></select></label>
+            <label>CPU強さ <select id="online-cpu-level"><option value="1">Lv1（反応遅い・攻撃少）</option><option value="2">Lv2（初級）</option><option value="3">Lv3（標準）</option><option value="4">Lv4（上級）</option><option value="5">Lv5（高反応・高頻度）</option><option value="6" selected>CPU.MAX</option><option value="7">CPU.PLAYER</option></select></label>
+            <label>ルール <select id="online-mode-select"><option value="free">個人戦</option><option value="team">チーム戦</option></select></label>
+            <label>アイテム <select id="online-items-select"><option value="on">ON</option><option value="off" selected>OFF</option></select></label>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;width:100%">
+            <button class="menu-btn" style="font-size:16px;padding:12px;width:200px" onclick="onlineCreateRoom()">部屋を作る</button>
+            <button class="menu-btn" style="font-size:16px;padding:12px;width:200px" onclick="onlineJoinRoom()">コードで参加</button>
+          </div>
+          <button id="online-start-btn" class="menu-btn" style="display:none;font-size:16px;padding:12px;width:100%;background:#1e8449" onclick="onlineStartBattle()">対戦を開始</button>
+          <div id="online-status" style="white-space:pre-wrap;line-height:1.5;color:#ecf0f1;text-align:center;font-size:14px;min-height:45px">部屋を作るか、友達から受け取ったコードを入力してください。</div>
+          <button class="back-btn" onclick="closeOnlineMenu()">◀ メインメニューに戻る</button>
+        </div>
+
+        <!-- ルール設定画面 -->
+        <div id="setup-menu">
+            <h2 id="menu-title" style="font-size: 24px; margin: 0 0 10px 0; color: #f1c40f; text-shadow: 2px 2px #000;">⚔️ バトル設定 ⚔️</h2>
+            <button class="back-btn" onclick="backToMainMenu()">◀ メインメニューに戻る</button>
+            
+            <div class="select-group">
+                <div class="global-settings">
+                    <div>
+                        <label>👥 対戦人数: </label>
+                        <select id="player-count-select" onchange="renderPlayerSlots()">
+                            <option value="2">2人対戦</option>
+                            <option value="3">3人対戦</option>
+                            <option value="4" selected>4人対戦</option>
+                            <option value="5">5人対戦</option>
+                            <option value="6">6人対戦</option>
+                            <option value="7">7人対戦</option>
+                            <option value="8">8人対戦</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label>🛡️ ルール: </label>
+                        <select id="game-mode-select" onchange="renderPlayerSlots()">
+                            <option value="free">個人戦 (全員敵乱闘)</option>
+                            <option value="team">チーム戦 (最大4チーム)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label>🗺️ 舞台: </label>
+                        <select id="stage-select">
+                            <option value="random" selected>ランダム（毎回抽選）</option>
+                            <option value="battle">戦場 (標準スタイル)</option>
+                            <option value="flat">平原 (終点スタイル)</option>
+                            <option value="islands">空中浮島 (二層スタイル)</option>
+                            <option value="minecraft">まいくら風 (ブロック島)</option>
+                            <option value="castle">古城要塞 (左右非対称)</option>
+                            <option value="volcano">決戦の火山 (足場激狭)</option>
+                            <option value="space">宇宙基地 (ネオンライン)</option>
+                            <option value="city">摩天楼ビル (中央奈落)</option>
+                            <option value="shrine">極東神社 (大鳥居)</option>
+                            <option value="submarine">鋼鉄の潜水艦 (超ロング)</option>
+                            <option value="splatoon">インクバトル風アリーナ（広大・可動床）</option>
+                            <option value="mariokart">カートサーキット風（広大・回転ギミック）</option>
+                            <option value="zelda">古代神殿風（広大・動く障害物）</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label>🔴 命の数: </label>
+                        <select id="stock-select">
+                            <option value="1">1機</option>
+                            <option value="2">2機</option>
+                            <option value="3" selected>3機</option>
+                            <option value="5">5機</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label>🤖 CPU強さ: </label>
+                        <select id="cpu-level-select">
+                            <option value="1">Lv1 (反応遅い・攻撃少)</option>
+                            <option value="2">Lv2 (初級)</option>
+                            <option value="3">Lv3 (標準)</option>
+                            <option value="4">Lv4 (上級)</option>
+                            <option value="5">Lv5 (ガチ超攻撃)</option>
+                            <option value="6" selected>LvMAX (最強・キラーモード)</option>
+                            <option value="7">オンライン限定：CPU.PLAYER（玄人級）</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label>🎁 アイテム出現: </label>
+                        <select id="items-toggle"><option value="on">ON</option><option value="off" selected>OFF</option></select>
+                    </div>
+                    <div id="online-cpu-count-wrap" style="display:none">
+                        <label>🤖 オンラインCPU人数: </label>
+                        <select id="online-cpu-count-setup"><option value="0">CPUなし</option><option value="1">CPU 1体</option><option value="2">CPU 2体</option><option value="3">CPU 3体</option><option value="4">CPU 4体</option><option value="5">CPU 5体</option><option value="6">CPU 6体</option></select>
+                    </div>
+                </div>
+                
+                <div class="player-slots-container" id="player-slots"></div>
+            </div>
+            
+            <button id="start-btn" onclick="setupGame()">戦闘開始 (BGM再生)</button>
+            <div class="hint-text">
+                [A/D/W]: 移動/ジャンプ [S]: バリア(空中も可/直前ジャスト) [I]: 掴み<br>
+                [J]: 弱攻撃 [K]: スマッシュ攻撃 <span class="highlight">[L]: キャラ固有必殺技（発動中完全無敵・クールダウンあり）</span><br>
+                オーストリア・ハンガリー／ポーランド：必殺技が溜まっている時にJ・K・Lを12フレーム以内に押すと重ね撃ち
+            </div>
+        </div>
+    </div>
+    
+    <canvas id="gameCanvas" width="1000" height="680"></canvas>
+</div>
+
+<script>
+    const GACHA_CHARACTERS = ['palau', 'tuvalu', 'south_africa', 'mongol_empire'];
+    const PLAYER_SAVE_KEY = 'pbb-player-save-v1';
+    let playerMoney = 0;
+    let cheatMode = false;
+    let kangarooAssist = null;
+    const unlockedCharacters = new Set();
+    function applyPlayerSave(data) {
+        if (!data || typeof data !== 'object') return;
+        playerMoney = Number.isFinite(Number(data.playerMoney)) ? Math.max(0, Number(data.playerMoney)) : playerMoney;
+        cheatMode = data.cheatMode === true;
+        unlockedCharacters.clear();
+        (Array.isArray(data.unlockedCharacters) ? data.unlockedCharacters : []).forEach(k => {
+            if (GACHA_CHARACTERS.includes(k) || k === 'united_nations') unlockedCharacters.add(k);
+        });
+    }
+    function currentPlayerSave() {
+        return { playerMoney, cheatMode, unlockedCharacters: [...unlockedCharacters], updatedAt: new Date().toISOString() };
+    }
+    function savePlayerState() {
+        try { localStorage.setItem(PLAYER_SAVE_KEY, JSON.stringify(currentPlayerSave())); } catch(e) {}
+        if (window.pbbCloudSave) window.pbbCloudSave(currentPlayerSave());
+        if (onlineBattle && onlineConn && onlineConn.open && (onlineRole === 'guest' || onlineRole === 'host')) onlineSend({type:'cheat-toggle',enabled:cheatMode});
+    }
+    try { const saved = JSON.parse(localStorage.getItem(PLAYER_SAVE_KEY) || 'null'); if (saved) applyPlayerSave(saved); } catch(e) {}
+    function openGiftMenu() {
+        let code = prompt("ギフトコードを入力してください：");
+        if (code === "atmp.shop") {
+            GACHA_CHARACTERS.forEach(k => unlockedCharacters.add(k));
+            renderPlayerSlots();
+            savePlayerState();
+            alert("パラオ、ツバル、南アフリカ共和国、モンゴル帝国をすべて獲得しました！");
+        } else if (code === "atmp.1") {
+            playerMoney += 2500;
+            savePlayerState();
+            alert(`2500ペニヒを獲得しました！ (現在の所持金: ${playerMoney} ペニヒ)`);
+        } else if (code === "atmp.x") {
+            cheatMode = !cheatMode;
+            savePlayerState();
+            alert(cheatMode
+                ? "チートモードを有効化しました！\n（体力無限・必殺技使い放題・無限ジャンプ・吹っ飛ばし軽減）"
+                : "チートモードを解除しました。\n設定は保存されました。");
+        } else if (code !== null && code !== "") {
+            alert("無効なコードです。");
+        }
+    }
+
+    function openGachaMenu() {
+        if (!unlockedCharacters.has('united_nations')) {
+            if (playerMoney < 10000) {
+                alert(`国際連合の購入には10,000ペニヒ必要です。\n所持: ${playerMoney}ペニヒ\nペニヒを貯めてからショップで購入してください。`);
+                return;
+            }
+            if (confirm('国際連合を10,000ペニヒで購入しますか？')) {
+                playerMoney -= 10000;
+                unlockedCharacters.add('united_nations');
+                savePlayerState();
+                renderPlayerSlots();
+                alert(`国際連合を獲得しました！\n残り: ${playerMoney}ペニヒ`);
+                return;
+            }
+        }
+        const cost = 1000;
+        if (playerMoney < cost) {
+            alert(`ペニヒが足りません。\n必要: ${cost}ペニヒ / 所持: ${playerMoney}ペニヒ`);
+            return;
+        }
+
+        playerMoney -= cost;
+        savePlayerState();
+        const locked = GACHA_CHARACTERS.filter(k => !unlockedCharacters.has(k));
+        if (locked.length === 0) {
+            playerMoney += cost;
+            alert("追加キャラクターはすべて獲得済みです！");
+            return;
+        }
+
+        // 通常3キャラを高確率、モンゴル帝国を激レアに設定。
+        const pool = [];
+        ['palau', 'tuvalu', 'south_africa'].forEach(k => {
+            if (locked.includes(k)) {
+                for (let i = 0; i < 32; i++) pool.push(k);
+            }
+        });
+        if (locked.includes('mongol_empire')) {
+            for (let i = 0; i < 4; i++) pool.push('mongol_empire');
+        }
+
+        const obtained = pool[Math.floor(Math.random() * pool.length)];
+        unlockedCharacters.add(obtained);
+        renderPlayerSlots();
+
+        const rarity = obtained === 'mongol_empire' ? '★★★ 激レア ★★★' : 'NEW!';
+        alert(`${rarity}\n${CHARACTERS[obtained].name} を獲得しました！\n残り: ${playerMoney}ペニヒ`);
+    }
+
+    function openLocalBattle() {
+        document.getElementById('online-cpu-count-wrap').style.display = 'none';
+        document.getElementById('main-menu-container').style.display = 'none';
+        document.getElementById('setup-menu').style.display = 'flex';
+        document.getElementById('start-overlay').style.justifyContent = 'flex-start';
+    }
+
+    function backToMainMenu() {
+        document.getElementById('setup-menu').style.display = 'none';
+        if(onlineBattle){document.getElementById('online-menu').style.display='flex';document.getElementById('main-menu-container').style.display='none';onlineStatus('対戦終了。部屋に残っています。ホストが「対戦を開始」を押すと再戦できます。');if(onlineRole==='host')document.getElementById('online-start-btn').style.display='block';onlineBattle=false;return;}
+        document.getElementById('main-menu-container').style.display = 'flex';
+        document.getElementById('start-overlay').style.justifyContent = 'center';
+    }
+
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+
+    const CHARACTERS = {
+        japan: { name: "日本", ult: "beam", shape: "circle" },
+        usa: { name: "アメリカ", ult: "nuke", shape: "circle" },
+        japan_empire: { name: "大日本帝国", ult: "zerosen", shape: "circle" },
+        germany_empire: { name: "ドイツ帝国", ult: "tank", shape: "circle" },
+        germany_nazi: { name: "ナチス・ドイツ", ult: "tank", shape: "circle" },
+        germany_modern: { name: "ドイツ(現)", ult: "tank", shape: "circle" },
+        italy: { name: "イタリア", ult: "italy_leg", shape: "circle" },
+        russia: { name: "ロシア", ult: "vodka_slow", shape: "circle" },
+        soviet: { name: "ソビエト", ult: "nuke", shape: "circle" },
+        france: { name: "フランス", ult: "suicide", shape: "circle" },
+        uk: { name: "イギリス", ult: "opium", shape: "circle" },
+        poland: { name: "ポーランド", ult: "poland_hussars", shape: "circle" },
+        austria_hungary: { name: "オーストリア・ハンガリー", ult: "ah_dual", shape: "circle" },
+        australia: { name: "オーストラリア", ult: "buff", shape: "circle" },
+        canada: { name: "カナダ", ult: "canada_maple", shape: "circle" },
+        manchukuo: { name: "満州国", ult: "manchukuo_five", shape: "circle" },
+        india: { name: "インド", ult: "india_chakra", shape: "circle" },
+        china: { name: "中国", ult: "qing", shape: "circle" },
+        united_nations: { name: "国際連合", ult: "un_atomic_breath", shape: "circle" },
+        spain: { name: "スペイン", ult: "soccer_shot", shape: "circle" },
+        korea: { name: "韓国", ult: "semicon", shape: "circle" },
+        north_korea: { name: "北朝鮮", ult: "missile10", shape: "circle" },
+        israel: { name: "イスラエル", ult: "missile3_drone", shape: "box" },
+        iran: { name: "イラン", ult: "missile3_drone", shape: "circle" },
+        palau: { name: "パラオ", ult: "giant", shape: "circle" },
+        tuvalu: { name: "ツバル", ult: "giant", shape: "circle" },
+        south_africa: { name: "南アフリカ共和国", ult: "five_dollar", shape: "circle" },
+        mongol_empire: { name: "モンゴル帝国", ult: "nuke", shape: "circle" },
+        greece: { name: "ギリシャ", ult: "greek_divine", shape: "circle" },
+        vatican: { name: "バチカン市国", ult: "vatican_thunder", shape: "circle" }
+    };
+
+    Object.keys(CHARACTERS).forEach(k => {
+        if (!GACHA_CHARACTERS.includes(k) && k !== 'united_nations') unlockedCharacters.add(k);
+    });
+
+    // 重量級システム：中量級を基準(1.0)に補正
+    const CHARACTER_CLASS = {
+        superHeavy: new Set(['soviet', 'russia', 'usa', 'north_korea', 'mongol_empire', 'united_nations']),
+        heavy: new Set(['china', 'iran', 'australia']),
+        light: new Set(['poland', 'manchukuo', 'palau', 'tuvalu', 'vatican']),
+        medium: new Set(['greece'])
+    };
+
+    function getCharacterStats(type) {
+        // ドイツ3形態は小さな個性差のみ付与（帝国＝火力、ナチス期＝機動、現代＝耐久）。
+        if (type === 'germany_empire') return { speed: 0.97, damage: 1.06, jump: 1.0, damageTaken: 1.02, koZone: 110 };
+        if (type === 'germany_nazi') return { speed: 1.04, damage: 1.00, jump: 1.0, damageTaken: 1.04, koZone: 110 };
+        if (type === 'germany_modern') return { speed: 1.00, damage: 0.99, jump: 1.0, damageTaken: 0.95, koZone: 110 };
+        if (CHARACTER_CLASS.superHeavy.has(type)) return { speed: 0.85, damage: 1.20, jump: 1.0, damageTaken: 0.94, koZone: 150 };
+        if (CHARACTER_CLASS.heavy.has(type)) return { speed: 0.925, damage: 1.10, jump: 1.0, damageTaken: 0.97, koZone: 135 };
+        if (CHARACTER_CLASS.light.has(type)) return { speed: 1.075, damage: 0.90, jump: 1.0, damageTaken: 0.99, koZone: 95 };
+        if (CHARACTER_CLASS.medium.has(type)) return { speed: 1.0, damage: 1.0, jump: 1.0, damageTaken: 1.0, koZone: 110 };
+        return { speed: 1.0, damage: 1.0, jump: 1.0, damageTaken: 1.0, koZone: 110 };
+    }
+
+    const STAGE_DATA = {
+        flat: [{ x: 150, y: 480, w: 700, h: 30 }],
+        battle: [
+            { x: 150, y: 480, w: 700, h: 30 },
+            { x: 250, y: 350, w: 160, h: 10 },
+            { x: 590, y: 350, w: 160, h: 10 },
+            { x: 420, y: 230, w: 160, h: 10 }
+        ],
+        islands: [
+            { x: 100, y: 480, w: 240, h: 25 },
+            { x: 660, y: 480, w: 240, h: 25 },
+            { x: 300, y: 320, w: 400, h: 15 }
+        ],
+        minecraft: [
+            { x: 150, y: 490, w: 700, h: 48 },
+            { x: 250, y: 370, w: 128, h: 16 },
+            { x: 622, y: 370, w: 128, h: 16 },
+            { x: 436, y: 260, w: 128, h: 16 }
+        ],
+        castle: [
+            { x: 80, y: 510, w: 840, h: 40 },
+            { x: 120, y: 390, w: 250, h: 15 },
+            { x: 600, y: 390, w: 280, h: 25 },
+            { x: 400, y: 260, w: 200, h: 15 }
+        ],
+        volcano: [
+            { x: 320, y: 470, w: 360, h: 50 },
+            { x: 400, y: 340, w: 200, h: 15 }
+        ],
+        space: [
+            { x: 250, y: 510, w: 500, h: 15 },
+            { x: 150, y: 390, w: 150, h: 10 },
+            { x: 700, y: 390, w: 150, h: 10 },
+            { x: 375, y: 280, w: 250, h: 10 }
+        ],
+        city: [
+            { x: 60, y: 460, w: 340, h: 250 },
+            { x: 600, y: 460, w: 340, h: 250 },
+            { x: 420, y: 310, w: 160, h: 15 }
+        ],
+        shrine: [
+            { x: 120, y: 520, w: 760, h: 30 },
+            { x: 300, y: 360, w: 400, h: 15 },
+            { x: 250, y: 230, w: 500, h: 20 }
+        ],
+        submarine: [
+            { x: 50, y: 500, w: 900, h: 40 },
+            { x: 430, y: 390, w: 140, h: 110 }
+        ],
+        splatoon: [
+            {x:35,y:525,w:930,h:78,theme:'ink'}, {x:70,y:420,w:235,h:26,theme:'ink',motion:'horizontal',range:115,speed:0.026,phase:0},
+            {x:745,y:420,w:235,h:26,theme:'ink',motion:'horizontal',range:115,speed:0.026,phase:3.14}, {x:365,y:340,w:270,h:24,theme:'ink',motion:'vertical',range:70,speed:0.034,phase:1.5},
+            {x:150,y:270,w:170,h:20,theme:'ink',motion:'vertical',range:45,speed:0.025,phase:2.4}, {x:680,y:245,w:180,h:20,theme:'ink',motion:'vertical',range:55,speed:0.029,phase:0.4},
+            {x:425,y:195,w:150,h:18,theme:'ink',motion:'horizontal',range:80,speed:0.021,phase:2.0}
+        ],
+        mariokart: [
+            {x:20,y:520,w:960,h:75,theme:'kart'}, {x:70,y:420,w:190,h:22,theme:'kart',motion:'vertical',range:60,speed:0.035,phase:0},
+            {x:745,y:420,w:190,h:22,theme:'kart',motion:'vertical',range:60,speed:0.035,phase:3.14}, {x:300,y:365,w:140,h:22,theme:'kart',motion:'horizontal',range:105,speed:0.04,phase:0.7},
+            {x:560,y:315,w:140,h:22,theme:'kart',motion:'horizontal',range:105,speed:0.04,phase:2.2}, {x:395,y:245,w:210,h:24,theme:'kart',motion:'vertical',range:55,speed:0.03,phase:1.3},
+            {x:120,y:180,w:125,h:18,theme:'kart',motion:'horizontal',range:50,speed:0.04,phase:1.2}, {x:755,y:175,w:125,h:18,theme:'kart',motion:'horizontal',range:50,speed:0.04,phase:4.1}
+        ],
+        zelda: [
+            {x:70,y:525,w:860,h:75,theme:'zelda'}, {x:115,y:430,w:180,h:30,theme:'zelda'}, {x:705,y:430,w:180,h:30,theme:'zelda'},
+            {x:330,y:375,w:340,h:26,theme:'zelda',motion:'horizontal',range:40,speed:0.012,phase:0.8}, {x:235,y:300,w:150,h:22,theme:'zelda',motion:'vertical',range:65,speed:0.014,phase:2.7},
+            {x:615,y:300,w:150,h:22,theme:'zelda',motion:'vertical',range:65,speed:0.014,phase:5.1}, {x:410,y:225,w:180,h:24,theme:'zelda',motion:'horizontal',range:65,speed:0.01,phase:1.4},
+            {x:455,y:140,w:90,h:20,theme:'zelda',motion:'vertical',range:30,speed:0.02,phase:0.5}
+        ]
+    };
+
+    const TEAM_COLORS = { 1: "#ff4d4d", 2: "#4d94ff", 3: "#4dff4d", 4: "#ffcc4d", 5: "#a55eea", 6: "#20bf6b", 7: "#eb3b5a", 8: "#fa8231" };
+
+    function renderPlayerSlots() {
+        const count = parseInt(document.getElementById('player-count-select').value);
+        const isTeam = document.getElementById('game-mode-select').value === 'team';
+        const container = document.getElementById('player-slots');
+        container.innerHTML = '';
+
+        const keys = Object.keys(CHARACTERS);
+
+        for (let i = 1; i <= count; i++) {
+            const row = document.createElement('div');
+            row.className = 'player-row';
+            
+            let labelText = i === 1 ? `🔴 P1 (YOU): ` : `🤖 CPU ${i}: `;
+            let label = document.createElement('label');
+            label.innerText = labelText;
+            if(i===1) label.style.color = "#ff7675";
+            row.appendChild(label);
+
+            let charSel = document.createElement('select');
+            charSel.id = `char-select-${i}`;
+            Object.keys(CHARACTERS).forEach(key => {
+                let op = document.createElement('option');
+                op.value = key; op.innerText = CHARACTERS[key].name;
+                if (!unlockedCharacters.has(key)) {
+                    op.disabled = true;
+                    op.innerText += ' 🔒';
+                }
+                charSel.appendChild(op);
+            });
+            
+            if (i === 1) {
+                charSel.value = "japan";
+            } else {
+                const availableKeys = keys.filter(k => unlockedCharacters.has(k));
+                charSel.value = availableKeys[Math.floor(Math.random() * availableKeys.length)];
+            }
+            row.appendChild(charSel);
+
+            if (isTeam) {
+                let teamSel = document.createElement('select');
+                teamSel.id = `team-select-${i}`;
+                for(let t=1; t<=4; t++) {
+                    let op = document.createElement('option');
+                    op.value = t; op.innerText = `チーム ${t}`;
+                    teamSel.appendChild(op);
+                }
+                teamSel.value = ((i - 1) % 4) + 1;
+                row.appendChild(teamSel);
+            }
+            container.appendChild(row);
+        }
+    }
+
+    renderPlayerSlots();
+
+    const keys = { a: false, d: false, w: false, s: false, j: false, k: false, l: false, i: false };
+    window.addEventListener('keydown', e => { if(keys.hasOwnProperty(e.key.toLowerCase())) keys[e.key.toLowerCase()] = true; });
+    window.addEventListener('keyup', e => { if(keys.hasOwnProperty(e.key.toLowerCase())) keys[e.key.toLowerCase()] = false; });
+
+    let players = [];
+    let projectiles = [];
+    let explosionEffects = [];
+    let particles = [];
+    let gameStarted = false;
+    let currentPlatforms = [];
+    let cpuLevel = 5;
+    let maxStocks = 3;
+    let gameMode = 'free';
+    let itemsEnabled = true;
+    let battleItems = [];
+    let stageFrame = 0;
+    let activeStageKey = 'battle';
+    let stageInvertedTimer = 0;
+    let nextItemSpawn = 240;
+    
+    let isCountdown = false;
+    let countdownStart = 0;
+    let audioCtx = null;
+    let bgmSequenceTimer = null;
+
+    function playHeavySFX(kind='hit') {
+        if (!audioCtx) return;
+        try { const now=audioCtx.currentTime; const prof={hit:[95,.20,.22],attack:[150,.12,.16],ultimate:[70,.50,.55],ko:[55,.70,.9]}; const [base,vol,len]=prof[kind]||prof.hit; [1,2.7].forEach((m,i)=>{ const o=audioCtx.createOscillator(),g=audioCtx.createGain(); o.type=i?'square':'sawtooth'; o.frequency.setValueAtTime(base*m,now); o.frequency.exponentialRampToValueAtTime(Math.max(35,base*m*.35),now+len); g.gain.setValueAtTime(vol*(i?.32:.75),now); g.gain.exponentialRampToValueAtTime(.001,now+len); o.connect(g);g.connect(audioCtx.destination);o.start(now);o.stop(now+len+.02);}); } catch(e){}
+    }
+
+    function playJustGuardSFX() { /* ジャストガード音なし */ }
+
+    function playUltSFX() {
+        if (!audioCtx) return;
+        try {
+            let osc = audioCtx.createOscillator();
+            let gain = audioCtx.createGain();
+            osc.type = 'square';
+            osc.frequency.setValueAtTime(800, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(2400, audioCtx.currentTime + 0.15);
+            gain.gain.setValueAtTime(0.4, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.3);
+        } catch(e){}
+    }
+
+    function startBattotaiBGM() {
+        if (audioCtx) return;
+        try {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            const melody = [
+                392, 440, 494, 523, 587, 587, 523, 494, 440, 392,
+                440, 440, 494, 523, 587, 587, 587, 0,
+                587, 659, 587, 523, 587, 392, 440, 392, 587,
+                523, 523, 494, 440, 392, 392, 392, 0
+            ];
+            const beats = [
+                0.35, 0.35, 0.35, 0.35, 0.7, 0.35, 0.35, 0.35, 0.35, 0.7,
+                0.35, 0.35, 0.35, 0.35, 0.7, 0.35, 0.35, 0.35,
+                0.35, 0.35, 0.35, 0.35, 0.7, 0.35, 0.35, 0.35, 0.7,
+                0.35, 0.35, 0.35, 0.35, 0.7, 0.35, 0.35, 0.7
+            ];
+            let time = audioCtx.currentTime;
+            let idx = 0;
+
+            function playNote() {
+                if (!gameStarted) return;
+                let freq = melody[idx];
+                let duration = beats[idx];
+
+                if (freq > 0) {
+                    let osc = audioCtx.createOscillator();
+                    let gain = audioCtx.createGain();
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(freq, time);
+                    gain.gain.setValueAtTime(0.18, time);
+                    gain.gain.exponentialRampToValueAtTime(0.001, time + duration - 0.03);
+                    osc.connect(gain);
+                    gain.connect(audioCtx.destination);
+                    osc.start(time);
+                    osc.stop(time + duration);
+                }
+                time += duration;
+                let delay = duration * 1000;
+                idx = (idx + 1) % melody.length;
+                bgmSequenceTimer = setTimeout(playNote, delay);
+            }
+            playNote();
+        } catch(e) { console.log("Audio Error:", e); }
+    }
+
+    function findGroundY(x) {
+        let highestY = canvas.height + 200;
+        currentPlatforms.forEach(plat => {
+            if (x >= plat.x - 24 && x <= plat.x + plat.w + 24) {
+                if (plat.y < highestY) highestY = plat.y;
+            }
+        });
+        if (highestY > canvas.height) highestY = 300; 
+        return highestY;
+    }
+
+    function spawnParticles(x, y, color, count = 15, speed = 5) {
+        for (let i = 0; i < count; i++) {
+            const angle = Math.random() * Math.PI * 2;
+            const s = Math.random() * speed + 2;
+            particles.push({
+                x: x, y: y, vx: Math.cos(angle) * s, vy: Math.sin(angle) * s,
+                radius: Math.random() * 4 + 2, color: color, alpha: 1, decay: Math.random() * 0.03 + 0.02
+            });
+        }
+    }
+
+    function setupGame() {
+        let count = parseInt(document.getElementById('player-count-select').value);
+        if (onlineBattle) count = Math.min(8, 2 + (parseInt(document.getElementById('online-cpu-count-setup')?.value || '0')));
+        gameMode = document.getElementById('game-mode-select').value;
+        let stageKey = document.getElementById('stage-select').value;
+        if (stageKey === 'random') {
+            const stageKeys = Object.keys(STAGE_DATA);
+            stageKey = stageKeys[Math.floor(Math.random() * stageKeys.length)];
+        }
+        maxStocks = parseInt(document.getElementById('stock-select').value);
+        cpuLevel = parseInt(document.getElementById('cpu-level-select').value);
+        if (cpuLevel === 7 && !onlineBattle) cpuLevel = 6;
+        itemsEnabled = document.getElementById('items-toggle')?.value !== 'off';
+        battleItems = []; stageFrame = 0; stageInvertedTimer = 0; nextItemSpawn = 240;
+        activeStageKey = stageKey;
+        currentPlatforms = STAGE_DATA[stageKey].map(pl => ({...pl, baseX:pl.x, baseY:pl.y}));
+
+        players = []; projectiles = []; particles = [];
+
+        // 確実なスポーン地点の確保
+        let validPlatforms = currentPlatforms.filter(p => p.w >= 40);
+        if (validPlatforms.length === 0) validPlatforms = currentPlatforms;
+
+        for (let i = 1; i <= count; i++) {
+            const sel = document.getElementById(`char-select-${i}`);
+            const type = sel ? sel.value : (Object.keys(CHARACTERS).filter(k=>unlockedCharacters.has(k))[Math.floor(Math.random()*Object.keys(CHARACTERS).filter(k=>unlockedCharacters.has(k)).length)] || 'japan');
+            const teamSel = document.getElementById(`team-select-${i}`);
+            const team = gameMode === 'team' ? (teamSel ? parseInt(teamSel.value) : ((i-1)%2)+1) : i;
+            
+            let plat = validPlatforms[(i - 1) % validPlatforms.length];
+            // Spawn points are spread across the whole stage to reduce overlap.
+            let spawnX = 100 + ((i-1) * (800 / Math.max(1,count-1)));
+            spawnX = Math.max(plat.x + 24, Math.min(plat.x + plat.w - 24, spawnX));
+            let spawnY = findGroundY(spawnX) - 24;
+            if (!Number.isFinite(spawnY) || spawnY > canvas.height-80) spawnY = plat.y - 24;
+            
+            const isCpu = onlineBattle ? i >= 3 : i !== 1;
+            let p = new Player(spawnX, spawnY, type, isCpu, maxStocks, team, i);
+            players.push(p);
+        }
+
+        document.getElementById('start-overlay').style.display = 'none';
+        document.getElementById('result-text').style.display = 'none';
+        gameStarted = true;
+        
+        isCountdown = true;
+        countdownStart = Date.now();
+        
+        if(bgmSequenceTimer) clearTimeout(bgmSequenceTimer);
+        audioCtx = null;
+
+        requestAnimationFrame(gameLoop);
+    }
+
+    function endGame(winnerName) {
+        if (onlineBattle && onlineRole === 'host') onlineSend({type:'end-game', winner:winnerName});
+        if (winnerName !== "DRAW") {
+            playerMoney += 1000;
+        }
+        gameStarted = false;
+        if(bgmSequenceTimer) clearTimeout(bgmSequenceTimer);
+        const resText = document.getElementById('result-text');
+        resText.innerText = winnerName + " の勝利！\n+1000ペニヒ\n所持金: " + playerMoney + "ペニヒ";
+        resText.style.display = 'block';
+        
+        document.getElementById('setup-menu').style.display = 'none';
+        if(onlineBattle){document.getElementById('online-menu').style.display='flex';document.getElementById('main-menu-container').style.display='none';document.getElementById('setup-menu').style.display='none';document.getElementById('start-overlay').style.display='flex';document.getElementById('start-overlay').style.justifyContent='center';onlineStatus('対戦終了。部屋に残っています。ホストが「対戦を開始」を押すと再戦できます。');if(onlineRole==='host')document.getElementById('online-start-btn').style.display='block';return;}
+        document.getElementById('main-menu-container').style.display = 'flex';
+        document.getElementById('start-overlay').style.justifyContent = 'center';
+        document.getElementById('start-overlay').style.display = 'flex';
+    }
+
+
+    function drawCharacterEyes(ctx, p) {
+        const r = p.r;
+        const eyeY = -r * 0.15;
+        ctx.save();
+        ctx.translate(p.x, p.y);
+        ctx.fillStyle = 'white';
+        ctx.strokeStyle = 'black';
+        ctx.lineWidth = 2;
+        if (p.isHit > 0) {
+            ctx.beginPath(); ctx.moveTo(r*0.1, eyeY-5); ctx.lineTo(r*0.3, eyeY+5); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(r*0.3, eyeY-5); ctx.lineTo(r*0.1, eyeY+5); ctx.stroke();
+        } else {
+            ctx.beginPath(); ctx.ellipse(r*0.25, eyeY, r*0.14, r*0.14, 0, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+            ctx.beginPath(); ctx.ellipse(r*0.65, eyeY, r*0.14, r*0.14, 0, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+        }
+        ctx.restore();
+    }
+
+    function drawNewCharacterVisual(ctx, p) {
+        const r = p.r;
+        ctx.save();
+        ctx.translate(p.x, p.y);
+        ctx.scale(p.facing || 1, 1);
+        if (p.state === 'shield') {
+            ctx.beginPath(); ctx.arc(0, 0, r + 15 * (p.shieldHP / 100), 0, Math.PI * 2);
+            ctx.fillStyle = p.justGuardWindow > 0 ? "rgba(255,255,255,0.95)" : "rgba(52,152,219,0.4)";
+            ctx.fill(); ctx.strokeStyle = "#2980b9"; ctx.lineWidth = 2; ctx.stroke();
+        }
+        ctx.save(); ctx.beginPath(); ctx.arc(0,0,r,0,Math.PI*2); ctx.clip();
+        if (p.type === 'palau') {
+            ctx.fillStyle='#4aadd8'; ctx.fillRect(-r,-r,r*2,r*2);
+            ctx.fillStyle='#f6d85e'; ctx.beginPath(); ctx.arc(-r*.08,0,r*.62,0,Math.PI*2); ctx.fill();
+        } else if (p.type === 'tuvalu') {
+            ctx.fillStyle='#48a9df'; ctx.fillRect(-r,-r,r*2,r*2);
+            ctx.fillStyle='#fff'; ctx.fillRect(-r,-r*.08,r*2,r*.16);
+            ctx.fillStyle='#d82f3d'; ctx.fillRect(-r,-r*.28,r*2,r*.10);
+            ctx.fillStyle='#f5d76e'; ctx.fillRect(-r,r*.35,r*2,r*.12);
+            ctx.fillStyle='#fff'; ctx.fillRect(-r*.72,-r*.72,r*.55,r*.45);
+        } else if (p.type === 'south_africa') {
+            ctx.fillStyle='#007749'; ctx.fillRect(-r,-r,r*2,r*2);
+            ctx.fillStyle='#ffb81c'; ctx.beginPath(); ctx.moveTo(-r,-r*.48); ctx.lineTo(r*.18,0); ctx.lineTo(-r,r*.48); ctx.closePath(); ctx.fill();
+            ctx.fillStyle='#000'; ctx.beginPath(); ctx.moveTo(-r,-r*.25); ctx.lineTo(r*.28,0); ctx.lineTo(-r,r*.25); ctx.closePath(); ctx.fill();
+            ctx.fillStyle='#de3831'; ctx.fillRect(r*.20,-r*.15,r*.80,r*.30);
+            ctx.fillStyle='#002395'; ctx.fillRect(r*.20,r*.16,r*.80,r*.28);
+            ctx.fillStyle='#fff'; ctx.beginPath(); ctx.moveTo(-r,-r*.36); ctx.lineTo(r*.25,0); ctx.lineTo(-r,r*.36); ctx.closePath(); ctx.fill();
+        } else if (p.type === 'mongol_empire') {
+            ctx.fillStyle='#2b63b7'; ctx.fillRect(-r,-r,r*2,r*2);
+            ctx.fillStyle='#fff'; ctx.fillRect(-r*.34,-r,r*.68,r*2);
+            ctx.fillStyle='#2b63b7'; ctx.font=`bold ${Math.max(12,r*.78)}px sans-serif`;
+            ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('ᠮ',0,0);
+        } else if (p.type === 'united_nations') {
+            ctx.fillStyle='#4b9bd6'; ctx.fillRect(-r,-r,r*2,r*2);
+            ctx.strokeStyle='#fff'; ctx.lineWidth=Math.max(1.5,r*.075);
+            ctx.beginPath(); ctx.ellipse(0,0,r*.58,r*.72,0,0,Math.PI*2); ctx.stroke();
+            ctx.beginPath(); ctx.ellipse(0,0,r*.34,r*.72,0,0,Math.PI*2); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(-r*.55,0); ctx.lineTo(r*.55,0); ctx.moveTo(-r*.45,-r*.32); ctx.lineTo(r*.45,-r*.32); ctx.moveTo(-r*.45,r*.32); ctx.lineTo(r*.45,r*.32); ctx.stroke();
+            ctx.beginPath(); ctx.arc(0,0,r*.82,Math.PI*.12,Math.PI*.88); ctx.stroke();
+            ctx.beginPath(); ctx.arc(0,0,r*.82,Math.PI*1.12,Math.PI*1.88); ctx.stroke();
+        } else if (p.type === 'greece') {
+            // ギリシャ国旗：青地に白十字＋青白の横縞。
+            ctx.fillStyle='#1766a5'; ctx.fillRect(-r,-r,r*2,r*2);
+            for(let i=0;i<5;i++){ctx.fillStyle='#fff';ctx.fillRect(-r,-r+i*r*.4,r*2,r*.2);}
+            ctx.fillStyle='#1766a5';ctx.fillRect(-r,-r,r*.82,r*.82);
+            ctx.fillStyle='#fff';ctx.fillRect(-r+r*.29,-r,r*.24,r*.82);ctx.fillRect(-r,-r+r*.29,r*.82,r*.24);
+        } else if (p.type === 'vatican') {
+            // バチカン国旗：黄白の二分割と金色の交差した鍵。
+            ctx.fillStyle='#ffdf00';ctx.fillRect(-r,-r,r,r*2);
+            ctx.fillStyle='#fff';ctx.fillRect(0,-r,r,r*2);
+            ctx.strokeStyle='#d5a400';ctx.lineWidth=Math.max(1.5,r*.11);ctx.lineCap='round';
+            ctx.beginPath();ctx.moveTo(r*.18,-r*.42);ctx.lineTo(r*.78,r*.38);ctx.moveTo(r*.78,-r*.42);ctx.lineTo(r*.18,r*.38);ctx.stroke();
+            ctx.fillStyle='#d5a400';ctx.beginPath();ctx.arc(r*.18,-r*.42,r*.09,0,Math.PI*2);ctx.arc(r*.78,-r*.42,r*.09,0,Math.PI*2);ctx.fill();
+        }
+        ctx.restore();
+        ctx.strokeStyle='#111'; ctx.lineWidth=2; ctx.beginPath(); ctx.arc(0,0,r,0,Math.PI*2); ctx.stroke();
+        const eyeY=-r*.15;
+        if (p.isHit>0) {
+            ctx.beginPath(); ctx.moveTo(r*.08,eyeY-4); ctx.lineTo(r*.28,eyeY+4); ctx.moveTo(r*.28,eyeY-4); ctx.lineTo(r*.08,eyeY+4); ctx.stroke();
+        } else {
+            ctx.fillStyle='#fff'; ctx.strokeStyle='#111';
+            ctx.beginPath(); ctx.ellipse(r*.25,eyeY,r*.14,r*.14,0,0,Math.PI*2); ctx.fill(); ctx.stroke();
+            ctx.beginPath(); ctx.ellipse(r*.65,eyeY,r*.14,r*.14,0,0,Math.PI*2); ctx.fill(); ctx.stroke();
+        }
+        ctx.restore();
+    }
+
+    class Player {
+        constructor(x, y, type, isCPU, stocks, team, id) {
+            this.id = id; this.startX = x; this.startY = y;
+            this.x = x; this.y = y; this.vx = 0; this.vy = 0; this.r = 24;
+            this.type = type; this.charData = CHARACTERS[type];
+            this.stats = getCharacterStats(type);
+            this.isCPU = isCPU; this.stocks = stocks; this.damage = 0;
+            this.facing = isCPU ? -1 : 1; this.isGrounded = false; this.jumps = 2;
+            this.isHit = 0; this.invincible = 0; this.state = 'idle';
+            this.actionTimer = 0; this.currentAttack = null;
+            this.shieldHP = 100; this.shieldBreakTimer = 0; this.justGuardWindow = 0; this.team = team;
+            
+            this.ultTimer = 0; this.ultReadyCooldown = 1200; this.ultState = null; this.qingArmor = 0;
+            this.tankJumpWindow = 0; this.tankSecretJumps = 0;
+            this.slowTimer = 0; this.pizzaMode = false;
+            this.ultLaunchX = 0; this.ultLaunchY = 0; this.ultStartFacing = 1; this.ultRoundTrip = 0;
+            this.suicidePending = 0;
+            this.respawnLock = 0; this.vaticanLHeld = false; this.vaticanKHeld = false; this.divineHitIds = []; this.divinePhase = 0; this.vaticanOrigin = null; this.vaticanFired = false;
+            this.jklComboHeld = {j:false,k:false,l:false}; this.jklComboMask = 0; this.jklComboTimer = 0; this.jklComboPendingUlt = false;
+
+            this.cpuKeys = { a: false, d: false, w: false, s: false, j: false, k: false, l: false, i: false };
+            this.cpuFacingTurnCooldown = 0; this.cpuTargetDx = 0;
+        }
+
+        getInput() {
+            if (onlineBattle) {
+                if (onlineRole === 'host' && this.id === 2) return onlineRemoteKeys;
+                if (onlineRole === 'guest' && this.id === 2) return keys;
+            }
+            return this.isCPU ? this.cpuKeys : keys;
+        }
+
+        update() {
+            if (onlineBattle && onlineRole === 'guest') return;
+            if (this.itemStopTimer > 0) { this.itemStopTimer--; this.vx=0; this.vy=0; this.isHit=0; return; } // ゲスト側はホストから届く状態を表示
+            if (this.suicidePending > 0) {
+                this.suicidePending--;
+                this.vx = 0; this.vy = 0;
+                this.invincible = 2; 
+                if (this.suicidePending === 0) {
+                    this.stocks--;
+                    if (this.stocks > 0) {
+                        this.x = this.startX; this.y = findGroundY(this.startX) - this.r; 
+                        this.vx = 0; this.vy = 0;
+                        this.damage = 0; this.invincible = 180; this.respawnLock = 60; this.ultState = null;
+                    }
+                }
+                return; 
+            }
+
+            if (cheatMode && (this.id === 1 || (onlineBattle && this.id === 2))) {
+                this.damage = 0;
+                this.ultReadyCooldown = 0;
+                this.jumps = 2;
+            }
+
+            const input = this.getInput();
+
+            // ギリシャの神格化チャージ中は、ギリシャ以外の全員を完全停止。
+            // 唯一許可する操作はSキーのシールド（ジャストガード判定も維持）。
+            const divineCharger = players.find(q => q !== this && q.stocks > 0 &&
+                q.type === 'greece' && q.ultState === 'greek_divine' && (q.divinePhase || 0) < 120);
+            if (divineCharger) {
+                this.vx = 0; this.vy = 0; this.isHit = 0;
+                this.currentAttack = null; this.actionTimer = 0;
+                // 必殺技チャージ中も通常時と同じ6フレームだけジャストガードを受け付ける。
+                // 受付時間を毎フレーム減らし、Sキーを押し直した瞬間だけ再設定する。
+                if (this.justGuardWindow > 0) this.justGuardWindow--;
+                const justPressedS = !!input.s && !this.greekGuardWasHeld;
+                if (justPressedS) this.justGuardWindow = 6;
+                this.greekGuardWasHeld = !!input.s;
+
+                if (this.shieldBreakTimer > 0) this.shieldBreakTimer--;
+                if (input.s && this.shieldBreakTimer <= 0 && this.shieldHP > 0) {
+                    this.state = 'shield';
+                    this.shieldHP = Math.max(0, this.shieldHP - 0.2);
+                    if (this.shieldHP <= 0) { this.state = 'idle'; this.shieldBreakTimer = 120; this.justGuardWindow = 0; }
+                } else {
+                    this.state = 'idle';
+                    if (this.shieldBreakTimer <= 0) this.shieldHP = Math.min(100, this.shieldHP + 0.5);
+                }
+                return;
+            }
+
+            // 復活直後1秒は操作・落下を防ぎ、無敵も維持する。
+            if (this.respawnLock > 0) {
+                this.respawnLock--; this.invincible = Math.max(this.invincible, 1);
+                this.vx = 0; this.vy = 0;
+                return;
+            }
+            // バチカン市国：画面上端の左右端へテレポート。無敵で左右移動し、Kで一度だけ落雷。
+            if (this.ultState === 'vatican_thunder') {
+                this.invincible = Math.max(this.invincible, 2);
+                const moveSpeed = 6.5;
+                if (input.a) this.x -= moveSpeed;
+                if (input.d) this.x += moveSpeed;
+                this.x = Math.max(this.r + 2, Math.min(canvas.width - this.r - 2, this.x));
+                this.y = this.r + 2;
+                this.vx = 0; this.vy = 0;
+                if (!this.vaticanFired && input.k && !this.vaticanKHeld) {
+                    this.vaticanFired = true;
+                    fireVaticanThunder(this);
+                    this.x = this.vaticanOrigin ? this.vaticanOrigin.x : this.x;
+                    this.y = this.vaticanOrigin ? this.vaticanOrigin.y : findGroundY(this.x)-this.r;
+                    this.vx = 0; this.vy = 0;
+                    this.ultState = null; this.ultTimer = 0; this.invincible = 0;
+                    this.ultReadyCooldown = 1200; this.vaticanKHeld = false;
+                    this.vaticanOrigin = null;
+                    return;
+                }
+                this.vaticanKHeld = !!input.k;
+                if (this.ultTimer > 0) this.ultTimer--;
+                if (this.ultTimer <= 0) {
+                    this.x = this.vaticanOrigin ? this.vaticanOrigin.x : this.x;
+                    this.y = this.vaticanOrigin ? this.vaticanOrigin.y : findGroundY(this.x)-this.r;
+                    this.vx = 0; this.vy = 0; this.ultState = null; this.invincible = 0;
+                    this.ultReadyCooldown = 1200; this.vaticanKHeld = false; this.vaticanOrigin = null;
+                }
+                return;
+            }
+            // ギリシャ神格化：発動から2秒間、他プレイヤーはSのシールド以外行動不能。
+            if (this.ultState === 'greek_divine') {
+                this.invincible = Math.max(this.invincible, 2);
+                this.vx = 0; this.vy = 0;
+                this.divinePhase = (this.divinePhase || 0) + 1;
+                if (this.divinePhase >= 120) {
+                    resolveGreekDivine(this);
+                    this.ultState = null; this.ultTimer = 0; this.invincible = 0;
+                    this.ultReadyCooldown = 1200;
+                    this.vy = 2.5; this.vx = 0; this.isGrounded = false;
+                }
+                return;
+            }
+            // ベクトル変更：吹っ飛び中に逆方向入力すると横方向の勢いを弱める。
+            if (this.isHit > 0) {
+                const awayDir = this.vx >= 0 ? 1 : -1;
+                if ((awayDir > 0 && input.a) || (awayDir < 0 && input.d)) this.vx *= 0.94;
+                if (input.w) this.vy *= 0.985;
+            }
+            if (this.slowTimer > 0) { this.slowTimer--; this.vy += 0.25; this.vx *= 0.5; } else { this.vy += 0.7; }
+            if (this.vy > 16) this.vy = 16;
+            this.vx *= 0.83;
+
+            if (this.isHit > 0) this.isHit--;
+            if (this.invincible > 0) this.invincible--;
+            if (this.russiaDotTimer > 0) {
+                this.russiaDotTimer--;
+                this.russiaDotTick = (this.russiaDotTick || 60) - 1;
+                if (this.russiaDotTick <= 0) {
+                    const dotOwner = this.russiaDotOwner || null;
+                    applyDamage(this, dotOwner, 5, 0, 0, false, 0);
+                    this.russiaDotTick = 60;
+                }
+                if (this.russiaDotTimer <= 0) { this.russiaDotTick = 60; this.russiaDotOwner = null; }
+            }
+            if (this.justGuardWindow > 0) this.justGuardWindow--;
+            if (this.ultReadyCooldown > 0) this.ultReadyCooldown--;
+            if (this.tankJumpWindow > 0) this.tankJumpWindow--;
+
+            if (this.ultState) {
+                if (this.ultTimer > 0) this.ultTimer--;
+
+                if (['japan', 'japan_empire', 'germany_empire', 'germany_nazi', 'germany_modern', 'france', 'uk', 'korea', 'north_korea', 'israel', 'iran', 'united_nations', 'greece', 'vatican'].includes(this.type)) {
+                    this.invincible = 2;
+                }
+
+                if (this.ultTimer <= 0 && this.type !== 'japan_empire') {
+                    if (this.ultState === 'suicide') { triggerSuicideExplosion(this); }
+                    else {
+                        if (this.ultState === 'giant') { this.r = (this.originalRadius != null ? this.originalRadius : 24); this.originalRadius = null; this.vx *= 0.5; this.slowTimer = 0; this.pizzaMode = false; }
+                        this.ultState = null; this.pizzaMode = false; this.ultTimer = 0;
+                        this.ultReadyCooldown = 1200;
+                    }
+                }
+            }
+
+            if (this.actionTimer > 0) {
+                this.actionTimer--;
+                if (this.actionTimer === 0) { this.state = 'idle'; this.currentAttack = null; }
+            }
+
+            if (this.ultState === 'giant') {
+                this.vx *= 0.92;
+                checkGiantCollisions(this);
+            }
+
+            if (this.ultState === 'five_dollar') {
+                this.vx *= 0.96;
+                if (this.ultTimer % 5 === 0) {
+                    projectiles.push({
+                        x: this.x + this.facing * 38, y: this.y - 4,
+                        vx: this.facing * 14, vy: (Math.random() - 0.5) * 1.5,
+                        owner: this, pType: 'five_dollar', timer: 45, r: 7
+                    });
+                }
+            }
+
+            if (this.ultState === 'beam') {
+                this.vx = 0; this.vy = 0;
+                if (this.ultTimer <= 150 && this.ultTimer % 3 === 0) fireBeamLogic(this);
+            }
+            if (this.ultState === 'un_atomic_breath') {
+                this.vx = 0; this.vy = 0;
+                if (this.ultTimer <= 48 && !this.unBeamFired) {
+                    this.unBeamFired = true;
+                    this.unBeamHitIds = [];
+                }
+                if (this.ultTimer <= 48) fireUNAtomicBreath(this);
+            }
+            
+            if (this.ultState === 'zerosen') {
+                this.vy = 0; this.y = this.ultLaunchY;
+                this.x += this.facing * 16;
+
+                if (this.ultStartFacing === 1) {
+                    if (this.ultRoundTrip === 0 && this.x >= canvas.width - this.r) { this.facing = -1; this.ultRoundTrip = 1; }
+                    else if (this.ultRoundTrip === 1 && this.x <= this.r) { this.facing = 1; this.ultRoundTrip = 2; }
+                    else if (this.ultRoundTrip === 2 && this.x >= this.ultLaunchX) { this.ultRoundTrip = 3; }
+                } else {
+                    if (this.ultRoundTrip === 0 && this.x <= this.r) { this.facing = 1; this.ultRoundTrip = 1; }
+                    else if (this.ultRoundTrip === 1 && this.x >= canvas.width - this.r) { this.facing = -1; this.ultRoundTrip = 2; }
+                    else if (this.ultRoundTrip === 2 && this.x <= this.ultLaunchX) { this.ultRoundTrip = 3; }
+                }
+
+                if (this.ultRoundTrip >= 3) {
+                    this.ultState = null; this.ultTimer = 0; this.ultReadyCooldown = 1200;
+                    const launchX = this.ultLaunchX;
+                    const launchPlatform = currentPlatforms.find(plat => launchX >= plat.x && launchX <= plat.x + plat.w);
+                    let landingPlatform = launchPlatform;
+                    if (!landingPlatform) {
+                        landingPlatform = currentPlatforms.reduce((best, plat) => {
+                            const nearestX = Math.max(plat.x, Math.min(launchX, plat.x + plat.w));
+                            const distance = Math.abs(nearestX - launchX);
+                            return !best || distance < best.distance ? { plat, distance } : best;
+                        }, null)?.plat;
+                    }
+                    if (landingPlatform) {
+                        this.x = Math.max(landingPlatform.x + this.r, Math.min(launchX, landingPlatform.x + landingPlatform.w - this.r));
+                        this.y = landingPlatform.y - this.r;
+                    } else {
+                        this.x = Math.max(this.r, Math.min(canvas.width - this.r, launchX));
+                        this.y = findGroundY(this.x) - this.r;
+                    }
+                    this.facing = this.ultStartFacing;
+                }
+                checkZerosenCollisions(this);
+            }
+            
+            if (this.ultState === 'suicide') { this.vx = 0; this.vy = 0; }
+            if (this.ultState === 'semicon') { checkSemiconCollisions(this); }
+            if (this.ultState === 'tank') { checkTankRunOver(this); }
+
+            if (this.ultState === 'italy_leg') {
+                this.vx = 0; this.vy = 0;
+                this.x = this.italyLegStartX;
+                this.facing = this.italyLegFacing;
+                checkItalyLegCollisions(this);
+            }
+
+            if (this.isHit === 0 && this.ultState !== 'beam' && this.ultState !== 'un_atomic_breath' && this.ultState !== 'suicide' && this.ultState !== 'zerosen' && this.ultState !== 'italy_leg') {
+                if (this.shieldBreakTimer > 0) {
+                    this.shieldBreakTimer--;
+                    if (this.state === 'shield') this.state = 'idle';
+                    this.justGuardWindow = 0;
+                }
+                if (input.s && this.ultState !== 'tank' && this.shieldBreakTimer <= 0 && this.shieldHP > 0) {
+                    if (this.state !== 'shield') this.justGuardWindow = 6;
+                    this.state = 'shield'; this.vx *= 0.5;
+                    this.shieldHP = Math.max(0, this.shieldHP - 0.2);
+                    if (this.shieldHP <= 0) { this.state = 'idle'; this.shieldBreakTimer = 120; this.justGuardWindow = 0; }
+                } else {
+                    if(this.state === 'shield') this.state = 'idle';
+                    if (this.shieldBreakTimer <= 0) this.shieldHP = Math.min(100, this.shieldHP + 0.5);
+                    
+                    let speedMult = (this.ultState === 'buff') ? 3.4 : ((this.ultState === 'qing' && this.qingArmor > 0) ? 2.85 : 1.9);
+                    if (this.ultState === 'tank') speedMult = 0.75;
+                    else speedMult *= this.stats.speed;
+                    
+                    if (input.a) { this.vx -= speedMult; if (!this.isCPU) this.facing = -1; if(this.state!=='attack') this.state = 'run'; }
+                    if (input.d) { this.vx += speedMult; if (!this.isCPU) this.facing = 1; if(this.state!=='attack') this.state = 'run'; }
+                    
+                    // ジャンプ力は今回、指定された数値補正がないため中量級を基準値として維持。
+                    let jumpPower = (this.ultState === 'buff') ? -20 : ((this.ultState === 'qing' && this.qingArmor > 0) ? -21.75 : -14.5);
+                    if (this.ultState === 'tank') {
+                        // L発動後18フレーム（約0.3秒）以内にジャンプすると、最大2回の特殊ジャンプ。
+                        if (input.w && this.tankSecretJumps < 2 && (this.tankSecretJumps > 0 || this.tankJumpWindow > 0) && this.vy >= -5) {
+                            this.vy = -14.5; this.tankSecretJumps++; this.isGrounded = false; input.w = false;
+                            spawnParticles(this.x, this.y + this.r, '#d7d7d7', 7, 2.5);
+                        }
+                    } else if (input.w && this.jumps > 0 && this.vy >= -5) {
+                        this.vy = jumpPower; this.jumps--; this.isGrounded = false; input.w = false;
+                    }
+                    this.checkAttacks(input);
+                    if ((input.j || input.i) && this.heldItem && !this.itemUseLatch) { useBattleItem(this); this.itemUseLatch=true; }
+                    if (!input.j && !input.i) this.itemUseLatch=false;
+                }
+            }
+
+            this.isGrounded = false;
+            currentPlatforms.forEach(plat => {
+                if(stageInvertedTimer>0){
+                    if(this.vy<=0 && this.x+this.r>plat.x && this.x-this.r<plat.x+plat.w && this.y-this.r>=plat.y+plat.h-8 && this.y-this.r+this.vy<=plat.y+plat.h){this.y=plat.y+plat.h+this.r;this.vy=0;this.isGrounded=true;this.jumps=2;}
+                }else if (this.vy >= 0 && this.x + this.r > plat.x && this.x - this.r < plat.x + plat.w) {
+                    if (this.y + this.r <= plat.y + 8 && this.y + this.r + this.vy >= plat.y) {
+                        this.y = plat.y - this.r; this.vy = 0; this.isGrounded = true; this.jumps = 2;
+                    }
+                }
+            });
+
+            this.x += this.vx; this.y += this.vy;
+            
+            if (this.ultState !== 'zerosen' && (this.y > canvas.height + 40 || this.x < -60 || this.x > canvas.width + 60)) {
+                this.stocks--;
+                spawnParticles(this.x, Math.min(canvas.height, this.y), '#e74c3c', 30, 8);
+                // パラオ／ツバルの巨大化中に撃墜された場合も、サイズを必ず初期値へ戻す。
+                if (this.type === 'palau' || this.type === 'tuvalu') {
+                    this.r = (this.originalRadius != null ? this.originalRadius : 24);
+                    this.originalRadius = null;
+                }
+                this.ultState = null; this.ultTimer = 0; this.pizzaMode = false;
+                if (this.stocks > 0) {
+                    this.x = this.startX; this.y = findGroundY(this.startX) - this.r; 
+                    this.vx = 0; this.vy = 0;
+                    this.damage = 0; this.invincible = 180; this.respawnLock = 60;
+                }
+            }
+
+            if (this.ultState === 'buff' && Math.random() < 0.6) {
+                const colors = ['#ff00ff', '#00ffff', '#ffff00', '#ff004d', '#7000ff'];
+                spawnParticles(this.x - this.facing*15, this.y + (Math.random()-0.5)*20, colors[Math.floor(Math.random()*colors.length)], 2, 1.5);
+            }
+
+            if (this.state === 'attack' && this.currentAttack) {
+                let atk = this.currentAttack;
+                let isHitFrame = (this.actionTimer <= atk.activeStart && this.actionTimer >= atk.activeEnd);
+                if (isHitFrame) {
+                    let attackFacing = this.facing >= 0 ? 1 : -1;
+                    let atkX = this.x + (attackFacing * (this.r + 10)); let atkY = this.y;
+                    players.forEach(t => {
+                        if (t === this || t.invincible > 0 || t.stocks <= 0) return;
+                        if (gameMode === 'team' && t.team === this.team) return;
+                        let dist = Math.sqrt((t.x - atkX)**2 + (t.y - atkY)**2);
+                        if (dist < t.r + atk.range) {
+                            applyDamage(t, this, atk.dmg, atk.kbBase, atk.kbScale, atk.type === 'grab', attackFacing);
+                        }
+                    });
+                }
+            }
+        }
+
+        startAttack(attack) {
+            // すべてのキャラクターで共通して通常攻撃を開始できるようにする
+            this.currentAttack = attack;
+            this.actionTimer = attack.duration;
+            this.state = 'attack';
+        }
+
+        checkAttacks(input) {
+            const comboCharacter = this.type === 'austria_hungary' || this.type === 'poland';
+            const comboReady = comboCharacter && !this.ultState && this.ultReadyCooldown === 0;
+            if (comboReady) {
+                const now = {j:!!input.j, k:!!input.k, l:!!input.l};
+                let pressed = 0;
+                if (now.j && !this.jklComboHeld.j) pressed |= 1;
+                if (now.k && !this.jklComboHeld.k) pressed |= 2;
+                if (now.l && !this.jklComboHeld.l) pressed |= 4;
+                this.jklComboHeld = now;
+                if (pressed) {
+                    if (this.jklComboTimer <= 0) { this.jklComboMask = 0; this.jklComboPendingUlt = false; }
+                    this.jklComboMask |= pressed;
+                    this.jklComboTimer = 12; // 12フレーム以内なら順番に押しても成立
+                }
+                if (this.jklComboMask === 7) {
+                    this.jklComboMask = 0; this.jklComboTimer = 0; this.jklComboPendingUlt = false;
+                    input.j = false; input.k = false; input.l = false;
+                    playUltSFX(); activateUltimate(this, true); return;
+                }
+                if (pressed & 4) this.jklComboPendingUlt = true;
+                if (this.jklComboPendingUlt) {
+                    if (input.l) input.l = false; // 通常必殺技を少し待ち、複合入力を優先
+                    this.jklComboTimer--;
+                    if (this.jklComboTimer <= 0) {
+                        this.jklComboMask = 0; this.jklComboPendingUlt = false;
+                        playUltSFX(); activateUltimate(this, false); return;
+                    }
+                    return;
+                }
+                if (this.jklComboTimer > 0) {
+                    this.jklComboTimer--;
+                    if (this.jklComboTimer <= 0) this.jklComboMask = 0;
+                }
+            } else {
+                this.jklComboMask = 0; this.jklComboTimer = 0; this.jklComboPendingUlt = false;
+                this.jklComboHeld = {j:!!input.j,k:!!input.k,l:!!input.l};
+            }
+            if (input.l && !this.ultState && this.ultReadyCooldown === 0) {
+                if (this.charData.ult === 'tank' && !this.isGrounded) { input.l = false; return; }
+                playUltSFX();
+                activateUltimate(this); input.l = false; return;
+            }
+            if (this.actionTimer > 0) return;
+
+            if (this.ultState === 'tank') {
+                if (input.j || input.i) {
+                    this.state = 'attack'; this.actionTimer = 12;
+                    projectiles.push({ x: this.x + this.facing*40, y: this.y, vx: this.facing*10.5, vy: (Math.random()-0.5)*2, owner: this, pType: 'poison', timer: 45 });
+                } else if (input.k) {
+                    this.state = 'attack'; this.actionTimer = 20;
+                    projectiles.push({ x: this.x + this.facing*50, y: this.y - 5, vx: this.facing*27, vy: 0, owner: this, pType: 'tank_cannon' });
+                    spawnParticles(this.x + this.facing*50, this.y, '#f39c12', 15, 6);
+                }
+                return;
+            }
+
+            let dmgMult = this.pizzaMode ? 3.3 : ((this.ultState === 'buff') ? 2.2 : ((this.ultState === 'qing') ? 1.5 : 1.0));
+            dmgMult *= this.stats.damage;
+            let kbMult = this.pizzaMode ? 2.6 : ((this.ultState === 'buff') ? 1.9 : 1.0);
+
+            if (input.i) {
+                this.startAttack({ type: 'grab', duration: 12, activeStart: 10, activeEnd: 1, dmg: 9*dmgMult, kbBase: 13*kbMult, kbScale: 0.0, range: 38 });
+            } else if (input.k) {
+                this.startAttack({ type: 'smash', duration: 28, activeStart: 20, activeEnd: 8, dmg: 18*dmgMult, kbBase: 14*kbMult, kbScale: 0.26, range: 55 });
+                spawnParticles(this.x + this.facing * 35, this.y, '#e74c3c', 14, 6);
+            } else if (input.j) {
+                if (!this.isGrounded) {
+                    this.startAttack({ type: 'air', duration: 16, activeStart: 12, activeEnd: 4, dmg: 7*dmgMult, kbBase: 7*kbMult, kbScale: 0.1, range: 48 });
+                } else if (Math.abs(this.vx) > 2.5) {
+                    this.startAttack({ type: 'dash', duration: 20, activeStart: 15, activeEnd: 6, dmg: 9*dmgMult, kbBase: 8*kbMult, kbScale: 0.12, range: 48 });
+                    this.vx += this.facing * 4.5;
+                } else {
+                    this.startAttack({ type: 'weak', duration: 10, activeStart: 8, activeEnd: 2, dmg: 4*dmgMult, kbBase: 4.5*kbMult, kbScale: 0.02, range: 42 });
+                }
+                spawnParticles(this.x + this.facing * 25, this.y, '#fff', 5, 2.5);
+            }
+        }
+
+
+        startAttack(data) {
+            this.state = 'attack';
+            this.actionTimer = data.duration;
+            this.currentAttack = data;
+        }
+
+        draw(ctx) {
+            const isSpecialVisual = ['palau','tuvalu','south_africa','mongol_empire','united_nations'].includes(this.type);
+            if (isSpecialVisual && this.suicidePending > 0) return;
+
+            if (this.suicidePending > 0) return;
+
+            if (this.ultState === 'beam') {
+                ctx.save(); let bDirection = this.facing;
+                if (this.ultTimer > 150) {
+                    ctx.fillStyle = "rgba(255, 0, 0, 0.5)";
+                    if (bDirection === 1) {
+                        ctx.fillRect(this.x + 20, this.y - 3, 1100, 6);
+                    } else {
+                        ctx.fillRect(this.x - 1120, this.y - 3, 1100, 6);
+                    }
+                } else {
+                    let grad = ctx.createLinearGradient(this.x, this.y - 45, this.x, this.y + 45);
+                    grad.addColorStop(0, "rgba(0, 240, 255, 0.1)"); grad.addColorStop(0.2, "rgba(255, 255, 255, 0.95)");
+                    grad.addColorStop(0.5, "rgba(0, 150, 255, 1)"); grad.addColorStop(0.8, "rgba(255, 255, 255, 0.95)"); grad.addColorStop(1, "rgba(0, 240, 255, 0.1)");
+                    ctx.fillStyle = grad;
+                    if (bDirection === 1) {
+                        ctx.fillRect(this.x + 20, this.y - 45, 1100, 90); ctx.fillStyle = "#ffffff"; ctx.fillRect(this.x + 20, this.y - 15, 1100, 30);
+                    } else {
+                        ctx.fillRect(this.x - 1120, this.y - 45, 1100, 90); ctx.fillStyle = "#ffffff"; ctx.fillRect(this.x - 1120, this.y - 15, 1100, 30);
+                    }
+                    if (Math.random() < 0.6) spawnParticles(this.x + bDirection * (Math.random()*600 + 50), this.y + (Math.random()-0.5)*70, '#4ff9ff', 2, 8);
+                }
+                ctx.restore();
+            }
+
+            if (this.ultState === 'un_atomic_breath') {
+                const dir=this.unBeamFacing||this.facing, charging=this.ultTimer>48;
+                ctx.save(); ctx.globalCompositeOperation='screen';
+                const pulse=0.55+0.35*Math.sin(Date.now()*0.025);
+                ctx.fillStyle=`rgba(90,210,255,${charging?pulse*0.28:0.95})`;
+                ctx.beginPath(); ctx.arc(this.x+dir*30,this.y-4,charging?18+(105-this.ultTimer)*0.42:38,0,Math.PI*2); ctx.fill();
+                if(charging){ctx.strokeStyle=`rgba(190,245,255,${pulse})`;ctx.lineWidth=5;ctx.beginPath();ctx.arc(this.x+dir*30,this.y-4,28+(105-this.ultTimer)*0.5,0,Math.PI*2);ctx.stroke();}
+                else {
+                    const grad=ctx.createLinearGradient(this.x,this.y-4,this.x+dir*980,this.y-4);
+                    grad.addColorStop(0,'rgba(255,255,255,1)');grad.addColorStop(0.12,'rgba(105,220,255,0.98)');grad.addColorStop(0.78,'rgba(40,145,255,0.9)');grad.addColorStop(1,'rgba(30,90,220,0.02)');
+                    ctx.fillStyle=grad;ctx.fillRect(dir===1?this.x+22:this.x-960,this.y-55,938,110);
+                    ctx.fillStyle='rgba(255,255,255,0.95)';ctx.fillRect(dir===1?this.x+22:this.x-960,this.y-15,938,30);
+                    ctx.fillStyle='rgba(170,235,255,0.22)';ctx.fillRect(dir===1?this.x+22:this.x-960,this.y-86,938,172);
+                }
+                ctx.restore();
+            }
+
+            if (this.ultState === 'italy_leg') {
+                const progress = Math.max(0, Math.min(1, 1 - this.ultTimer / 45));
+                const scale = 0.18 + progress * 0.82;
+                ctx.save();
+                ctx.translate(this.x + this.facing * (this.r + 100 * scale), this.y);
+                // 約4倍の横幅。緑のイタリア半島風シルエット
+                ctx.scale(this.facing * scale * (20 / 3), scale);
+                ctx.fillStyle = '#168447'; ctx.strokeStyle = '#0b4f2b'; ctx.lineWidth = 2.2;
+                ctx.beginPath();
+                ctx.moveTo(-13,-48); ctx.lineTo(3,-42); ctx.lineTo(9,-28); ctx.lineTo(19,-16);
+                ctx.lineTo(14,-3); ctx.lineTo(24,10); ctx.lineTo(18,20); ctx.lineTo(28,31);
+                ctx.lineTo(24,43); ctx.lineTo(36,49); ctx.lineTo(44,45); ctx.lineTo(39,58);
+                ctx.lineTo(25,62); ctx.lineTo(14,50); ctx.lineTo(9,36); ctx.lineTo(0,24);
+                ctx.lineTo(-6,9); ctx.lineTo(-12,-4); ctx.lineTo(-18,-20); ctx.lineTo(-19,-35); ctx.closePath();
+                ctx.fill(); ctx.stroke();
+                ctx.beginPath(); ctx.ellipse(-23,-39,7,10,-0.25,0,Math.PI*2); ctx.fill(); ctx.stroke();
+                ctx.beginPath(); ctx.ellipse(25,70,12,4,-0.18,0,Math.PI*2); ctx.fill(); ctx.stroke();
+                ctx.restore();
+            }
+
+            if (this.x >= 0 && this.x <= canvas.width && this.y >= 0 && this.y <= canvas.height - 80) {
+                ctx.save();
+                ctx.translate(this.x, this.y + this.r - 2);
+                ctx.beginPath();
+                ctx.ellipse(0, 0, this.r * 1.1, this.r * 0.35, 0, 0, Math.PI * 2);
+                ctx.fillStyle = TEAM_COLORS[this.team] || "#ffffff";
+                ctx.globalAlpha = 0.35;
+                ctx.fill();
+                ctx.strokeStyle = TEAM_COLORS[this.team] || "#ffffff";
+                ctx.lineWidth = 2.5;
+                ctx.globalAlpha = 0.85;
+                ctx.stroke();
+                ctx.restore();
+
+                if (isSpecialVisual) {
+                    // 特殊ビジュアル組も通常キャラと同じ無敵点滅を適用する。
+                    ctx.save();
+                    if (this.invincible > 0 && Math.floor(Date.now() / 75) % 2 === 0) ctx.globalAlpha = 0.22;
+                    drawNewCharacterVisual(ctx, this);
+                    ctx.restore();
+                } else this.drawBall(ctx);
+            }
+        }
+
+        drawBall(ctx) {
+            ctx.save(); ctx.translate(this.x, this.y);
+            // 全キャラ共通の無敵点滅。特殊デザインでも描画関数に依存せず必ず点滅させる。
+            const blinkHidden = this.invincible > 0 && Math.floor(Date.now() / 75) % 2 === 0;
+            if (blinkHidden) ctx.globalAlpha = 0.22;
+
+            if (gameMode === 'team' && this.ultState !== 'suicide') {
+                ctx.beginPath(); ctx.arc(0, this.r + 4, 14, 0, Math.PI, false); ctx.fillStyle = TEAM_COLORS[this.team] || "white"; ctx.fill();
+            }
+
+            if (this.state === 'shield') {
+                ctx.beginPath(); ctx.arc(0, 0, this.r + 15 * (this.shieldHP/100), 0, Math.PI * 2);
+                ctx.fillStyle = this.justGuardWindow > 0 ? "rgba(255, 255, 255, 0.95)" : "rgba(52, 152, 219, 0.4)";
+                ctx.fill(); ctx.strokeStyle = "#2980b9"; ctx.lineWidth = 2; ctx.stroke();
+            }
+            if (this.shieldBreakTimer > 0) { ctx.save(); ctx.globalAlpha = 0.8; ctx.strokeStyle = '#8edcff'; ctx.lineWidth = 3; ctx.setLineDash([5,5]); ctx.beginPath(); ctx.arc(0,0,this.r+7,0,Math.PI*2); ctx.stroke(); ctx.restore(); }
+
+            if (this.type === 'greece' && this.ultState === 'greek_divine') {
+                const pulse = 0.72 + 0.22*Math.sin(Date.now()*0.012);
+                ctx.save(); ctx.globalAlpha = pulse; ctx.strokeStyle='#ffe89a'; ctx.shadowColor='#fff4c2'; ctx.shadowBlur=24; ctx.lineWidth=3;
+                for(let a=0;a<8;a++){const ang=a*Math.PI/4+Date.now()*0.0007;ctx.beginPath();ctx.moveTo(Math.cos(ang)*34,Math.sin(ang)*34);ctx.lineTo(Math.cos(ang)*58,Math.sin(ang)*58);ctx.stroke();}
+                ctx.beginPath();ctx.ellipse(0,-this.r-18,23,7,-0.12,0,Math.PI*2);ctx.lineWidth=5;ctx.stroke();
+                ctx.restore();
+            }
+            if (this.type === 'vatican') { ctx.save();ctx.strokeStyle='#d5a400';ctx.lineWidth=2;ctx.beginPath();ctx.arc(0,0,this.r+3,0,Math.PI*2);ctx.stroke();ctx.restore(); }
+            ctx.scale(this.facing, 1); let r = this.r;
+
+            if (this.ultState === 'zerosen') {
+                ctx.fillStyle = "#1e3f20"; ctx.fillRect(-45, -12, 90, 24); ctx.fillStyle = "#152c16"; ctx.fillRect(-10, -45, 20, 90);
+                ctx.fillStyle = "#bc002d"; ctx.beginPath(); ctx.arc(-20, 0, 10, 0, Math.PI*2); ctx.arc(20, 0, 10, 0, Math.PI*2); ctx.fill();
+                ctx.fillStyle = "#000"; ctx.fillRect(45, -15, 4, 30); ctx.restore(); return;
+            }
+            if (this.ultState === 'tank') {
+                ctx.fillStyle = "#7f8c8d"; ctx.fillRect(-35, -20, 70, 35); ctx.fillStyle = "#555"; ctx.fillRect(-40, 12, 80, 12);
+                ctx.fillStyle = "#666"; ctx.fillRect(-15, -32, 35, 15); ctx.fillStyle = "#444"; ctx.fillRect(20, -28, 40, 6);
+                ctx.restore(); return;
+            }
+
+            ctx.save(); ctx.beginPath();
+            if (this.charData.shape === 'box') ctx.rect(-r, -r, r * 2, r * 2); else ctx.arc(0, 0, r, 0, Math.PI * 2);
+            ctx.clip();
+
+            if (this.ultState === 'suicide') { ctx.fillStyle = "#ffffff"; ctx.fillRect(-r, -r, r*2, r*2); } 
+            else { drawFlagPattern(ctx, this.type, r); }
+            ctx.restore();
+
+            if (this.ultState === 'qing' && this.qingArmor > 0) {
+                ctx.save();
+                ctx.globalAlpha = 0.28 + 0.08 * Math.sin(Date.now() * 0.012);
+                ctx.fillStyle = '#ffd700';
+                ctx.beginPath();
+                if (this.charData.shape === 'box') ctx.rect(-r,-r,r*2,r*2); else ctx.arc(0,0,r,0,Math.PI*2);
+                ctx.fill();
+                ctx.globalAlpha = 0.8;
+                ctx.strokeStyle = '#ffd700'; ctx.lineWidth = 4;
+                ctx.beginPath(); ctx.arc(0,0,r+4,0,Math.PI*2); ctx.stroke();
+                ctx.restore();
+                if (this.type === 'china' && this.qingArmor > 0) { ctx.save(); ctx.fillStyle='#ffd700'; ctx.font='bold 11px Arial'; ctx.textAlign='center'; ctx.fillText(`ARMOR ${Math.ceil(this.qingArmor)}%`,0,-r-13); ctx.restore(); }
+            }
+
+            ctx.beginPath();
+            if (this.charData.shape === 'box') ctx.rect(-r, -r, r * 2, r * 2); else ctx.arc(0, 0, r, 0, Math.PI * 2);
+            ctx.lineWidth = 3; ctx.strokeStyle = "black"; ctx.stroke();
+
+            ctx.fillStyle = "white"; ctx.strokeStyle = "black"; ctx.lineWidth = 2; let eyeY = -r * 0.15;
+            if (this.isHit > 0) {
+                ctx.beginPath(); ctx.moveTo(r*0.1, eyeY-5); ctx.lineTo(r*0.3, eyeY+5); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(r*0.3, eyeY-5); ctx.lineTo(r*0.1, eyeY+5); ctx.stroke();
+            } else {
+                ctx.beginPath(); ctx.ellipse(r*0.25, eyeY, r*0.14, r*0.14, 0, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+                ctx.beginPath(); ctx.ellipse(r*0.65, eyeY, r*0.14, r*0.14, 0, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+            }
+
+            if (this.ultState === 'semicon') {
+                ctx.fillStyle = "#222"; ctx.fillRect(0, -50, 35, 35);
+                ctx.fillStyle = "#f1c40f"; for(let m=2; m<35; m+=8) { ctx.fillRect(m, -53, 4, 3); ctx.fillRect(m, -15, 4, 3); }
+            } else if (this.pizzaMode) {
+                ctx.beginPath(); ctx.arc(r+8, 0, 18, 0, Math.PI*2); ctx.fillStyle = "#f1c40f"; ctx.fill(); ctx.strokeStyle = "#d35400"; ctx.lineWidth = 3; ctx.stroke();
+                ctx.fillStyle = "#e74c3c"; for(let k=0; k<3; k++) { ctx.beginPath(); ctx.arc(r+5+k*4, -5+k*5, 3, 0, Math.PI*2); ctx.fill(); }
+            }
+
+            drawWeapon(ctx, this.type, r); ctx.restore();
+        }
+    }
+
+    function drawFlagPattern(ctx, type, r) {
+        ctx.fillStyle = "#ffffff"; ctx.fillRect(-r, -r, r * 2, r * 2);
+
+        if (type === 'japan') {
+            ctx.fillStyle = "#bc002d"; ctx.beginPath(); ctx.arc(0, 0, r * 0.45, 0, Math.PI * 2); ctx.fill();
+        } else if (type === 'japan_empire') {
+            ctx.fillStyle = "#bc002d";
+            for (let a = 0; a < 16; a++) {
+                ctx.beginPath(); ctx.moveTo(0, 0); ctx.arc(0, 0, r * 1.5, (a * 22.5) * Math.PI / 180, (a * 22.5 + 11.25) * Math.PI / 180); ctx.lineTo(0, 0); ctx.fill();
+            }
+            ctx.fillStyle = "#ffffff"; ctx.beginPath(); ctx.arc(0, 0, r * 0.5, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = "#bc002d"; ctx.beginPath(); ctx.arc(0, 0, r * 0.42, 0, Math.PI * 2); ctx.fill();
+        } else if (type === 'usa') {
+            ctx.fillStyle = "#b22234"; 
+            for (let i = 0; i < 13; i++) {
+                ctx.fillStyle = (i % 2 === 0) ? "#b22234" : "#ffffff";
+                ctx.fillRect(-r, -r + (i * (r * 2) / 13), r * 2, (r * 2) / 13);
+            }
+            ctx.fillStyle = "#3c3b6e"; ctx.fillRect(-r, -r, r * 1.1, r * 1.1); 
+            ctx.fillStyle = "#fff"; 
+            for(let sy=0; sy<3; sy++) {
+                for(let sx=0; sx<3; sx++) {
+                    ctx.font = "bold 7px Arial"; ctx.fillText("★", -r + 2 + sx*8, -r + 10 + sy*8);
+                }
+            }
+        } else if (type === 'germany_modern') {
+            ctx.fillStyle = "#000000"; ctx.fillRect(-r, -r, r * 2, r * 0.66); ctx.fillStyle = "#dd0000"; ctx.fillRect(-r, -r + r * 0.66, r * 2, r * 0.66); ctx.fillStyle = "#ffce00"; ctx.fillRect(-r, -r + r * 1.32, r * 2, r * 0.66);
+        } else if (type === 'germany_empire') {
+            ctx.fillStyle = "#000000"; ctx.fillRect(-r, -r, r * 2, r * 0.66); ctx.fillStyle = "#ffffff"; ctx.fillRect(-r, -r + r * 0.66, r * 2, r * 0.66); ctx.fillStyle = "#dd0000"; ctx.fillRect(-r, -r + r * 1.32, r * 2, r * 0.66);
+        } else if (type === 'germany_nazi') {
+            ctx.fillStyle = "#dd0000"; ctx.fillRect(-r, -r, r * 2, r * 2); ctx.fillStyle = "#ffffff"; ctx.beginPath(); ctx.arc(0, 0, r * 0.52, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = "#000000"; ctx.fillRect(-2, -r * 0.38, 4, r * 0.76); ctx.fillRect(-r * 0.38, -2, r * 0.76, 4);
+        } else if (type === 'france') {
+            ctx.fillStyle = "#0055a5"; ctx.fillRect(-r, -r, r * 0.66, r * 2); 
+            ctx.fillStyle = "#ffffff"; ctx.fillRect(-r + r * 0.66, -r, r * 0.66, r * 2); 
+            ctx.fillStyle = "#ef4135"; ctx.fillRect(-r + r * 1.32, -r, r * 0.66, r * 2);
+        } else if (type === 'italy') {
+            ctx.fillStyle = "#009246"; ctx.fillRect(-r, -r, r * 0.66, r * 2); ctx.fillStyle = "#ffffff"; ctx.fillRect(-r + r * 0.66, -r, r * 0.66, r * 2); ctx.fillStyle = "#ce2b37"; ctx.fillRect(-r + r * 1.32, -r, r * 0.66, r * 2);
+        } else if (type === 'russia') {
+            ctx.fillStyle = "#ffffff"; ctx.fillRect(-r, -r, r * 2, r * 0.66); ctx.fillStyle = "#0039a6"; ctx.fillRect(-r, -r + r * 0.66, r * 2, r * 0.66); ctx.fillStyle = "#d52b1e"; ctx.fillRect(-r, -r + r * 1.32, r * 2, r * 0.66);
+        } else if (type === 'uk') {
+            ctx.fillStyle = "#00247d"; ctx.fillRect(-r, -r, r * 2, r * 2); ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 7;
+            ctx.beginPath(); ctx.moveTo(-r, -r); ctx.lineTo(r, r); ctx.moveTo(r, -r); ctx.lineTo(-r, r); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(-r, 0); ctx.lineTo(r, 0); ctx.moveTo(0, -r); ctx.lineTo(0, r); ctx.stroke(); 
+            ctx.strokeStyle = "#cf142b"; ctx.lineWidth = 3;
+            ctx.beginPath(); ctx.moveTo(-r, -r); ctx.lineTo(r, r); ctx.moveTo(r, -r); ctx.lineTo(-r, r); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(-r, 0); ctx.lineTo(r, 0); ctx.moveTo(0, -r); ctx.lineTo(0, r); ctx.stroke();
+        } else if (type === 'soviet') {
+            ctx.fillStyle = "#cc0000"; ctx.fillRect(-r, -r, r * 2, r * 2); ctx.fillStyle = "#ffcc00"; ctx.font = "bold 14px Arial"; ctx.fillText("☭", -10, 5);
+        } else if (type === 'china') {
+            ctx.fillStyle = "#de2110"; ctx.fillRect(-r, -r, r * 2, r * 2); ctx.fillStyle = "#ffde00"; ctx.font = "12px Arial"; ctx.fillText("★", -16, -5);
+        } else if (type === 'poland') {
+            ctx.fillStyle = "#dc143c"; ctx.fillRect(-r, -r, r * 2, r);
+            ctx.fillStyle = "#ffffff"; ctx.fillRect(-r, 0, r * 2, r);
+        } else if (type === 'austria_hungary') {
+            ctx.fillStyle = "#e2001a"; ctx.fillRect(-r, -r, r, r * 0.66); ctx.fillRect(-r, -r + r * 1.32, r, r * 0.66);
+            ctx.fillStyle = "#ffffff"; ctx.fillRect(-r, -r + r * 0.66, r, r * 0.66);
+            ctx.fillStyle = "#e2001a"; ctx.fillRect(0, -r, r, r * 0.66);
+            ctx.fillStyle = "#ffffff"; ctx.fillRect(0, -r + r * 0.66, r, r * 0.66);
+            ctx.fillStyle = "#436f4d"; ctx.fillRect(0, -r + r * 1.32, r, r * 0.66);
+            ctx.fillStyle = "#ffd700";
+            ctx.fillRect(-r*0.6, -r*0.2, r*0.4, r*0.5);
+            ctx.fillRect(r*0.2, -r*0.2, r*0.4, r*0.5);
+        } else if (type === 'australia') {
+            ctx.fillStyle = "#00008b"; ctx.fillRect(-r, -r, r * 2, r * 2); 
+            let cr = r * 0.9;
+            ctx.fillStyle = "#ffffff"; ctx.fillRect(-r, -r, cr, cr * 0.6);
+            ctx.strokeStyle = "#ff0000"; ctx.lineWidth = 2;
+            ctx.beginPath(); ctx.moveTo(-r, -r); ctx.lineTo(-r+cr, -r+cr*0.6); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(-r+cr, -r); ctx.lineTo(-r, -r+cr*0.6); ctx.stroke();
+            ctx.lineWidth = 4;
+            ctx.beginPath(); ctx.moveTo(-r+cr/2, -r); ctx.lineTo(-r+cr/2, -r+cr*0.6); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(-r, -r+cr*0.3); ctx.lineTo(-r+cr, -r+cr*0.3); ctx.stroke();
+            ctx.fillStyle = "#ffffff"; ctx.font = "8px Arial"; 
+            ctx.fillText("★", -r + cr*0.3, -r + cr + 10);
+            ctx.font = "6px Arial";
+            ctx.fillText("★", r*0.3, -r*0.4);
+            ctx.fillText("★", r*0.1, 0);
+            ctx.fillText("★", r*0.5, 0);
+            ctx.fillText("★", r*0.3, r*0.4);
+            ctx.font = "4px Arial"; ctx.fillText("★", r*0.4, r*0.1);
+        } else if (type === 'canada') {
+            ctx.fillStyle = "#ff0000"; ctx.fillRect(-r, -r, r * 0.52, r * 2); ctx.fillRect(r * 0.52, -r, r * 2, r * 2);
+            ctx.fillStyle = "#ffffff"; ctx.fillRect(-r + r * 0.52, -r, r * 1.04, r * 2); ctx.fillStyle = "#ff0000"; ctx.font = "14px Arial"; ctx.fillText("🍁", -7, 5);
+        } else if (type === 'manchukuo') {
+            ctx.fillStyle = "#ffde00"; ctx.fillRect(-r, -r, r * 2, r * 2);
+            let mColors = ["#cc0000", "#0033a0", "#ffffff", "#000000"];
+            for(let i = 0; i < 4; i++) {
+                ctx.fillStyle = mColors[i];
+                ctx.fillRect(-r, -r + (i * (r / 4)), r, r / 4);
+            }
+        } else if (type === 'india') {
+            ctx.fillStyle = "#ff9933"; ctx.fillRect(-r, -r, r*2, r*0.66); ctx.fillStyle = "#ffffff"; ctx.fillRect(-r, -r+r*0.66, r*2, r*0.66);
+            ctx.fillStyle = "#128807"; ctx.fillRect(-r, -r+r*1.32, r*2, r*0.66); ctx.fillStyle = "#000080"; ctx.beginPath(); ctx.arc(0, 0, r*0.2, 0, Math.PI*2); ctx.stroke();
+        } else if (type === 'spain') {
+            ctx.fillStyle = "#aa151b"; ctx.fillRect(-r, -r, r*2, r*0.5); ctx.fillRect(-r, r*0.5, r*2, r*0.5);
+            ctx.fillStyle = "#f1bf00"; ctx.fillRect(-r, -r*0.5, r*2, r); ctx.fillStyle = "#aa151b"; ctx.fillRect(-r*0.4, -r*0.2, r*0.2, r*0.4);
+        } else if (type === 'korea') {
+            ctx.fillStyle = "#ffffff"; ctx.fillRect(-r, -r, r*2, r*2);
+            ctx.fillStyle = "#cd2e3a"; ctx.beginPath(); ctx.arc(0, 0, r*0.4, Math.PI, 0, false); ctx.fill();
+            ctx.fillStyle = "#0047a0"; ctx.beginPath(); ctx.arc(0, 0, r*0.4, 0, Math.PI, false); ctx.fill();
+        } else if (type === 'north_korea') {
+            ctx.fillStyle = "#024fa2"; ctx.fillRect(-r, -r, r*2, r*2); ctx.fillStyle = "#ffffff"; ctx.fillRect(-r, -r*0.7, r*2, r*1.4);
+            ctx.fillStyle = "#ed1c24"; ctx.fillRect(-r, -r*0.6, r*2, r*1.2); ctx.fillStyle = "#ffffff"; ctx.beginPath(); ctx.arc(-r*0.3, 0, r*0.35, 0, Math.PI*2); ctx.fill();
+            ctx.fillStyle = "#ed1c24"; ctx.font = "10px Arial"; ctx.fillText("★", -r*0.5, 4);
+        } else if (type === 'israel') {
+            ctx.fillStyle = "#ffffff"; ctx.fillRect(-r, -r, r*2, r*2); ctx.fillStyle = "#0038a8"; ctx.fillRect(-r, -r*0.7, r*2, r*0.2); ctx.fillRect(-r, r*0.5, r*2, r*0.2);
+            ctx.font = "bold 14px Arial"; ctx.fillText("✡", -6, 5);
+        } else if (type === 'greece') {
+            ctx.fillStyle = '#ffffff'; ctx.fillRect(-r, -r, r*2, r*2);
+            for (let i=0;i<5;i++) {
+                ctx.fillStyle = '#1766a5';
+                ctx.fillRect(-r, -r + i*r*0.4, r*2, r*0.2);
+            }
+            ctx.fillStyle = '#1766a5'; ctx.fillRect(-r, -r, r*0.82, r*0.82);
+            ctx.fillStyle = '#fff'; ctx.fillRect(-r+r*0.29, -r, r*0.24, r*0.82);
+            ctx.fillRect(-r, -r+r*0.29, r*0.82, r*0.24);
+        } else if (type === 'vatican') {
+            ctx.fillStyle = '#ffdf00'; ctx.fillRect(-r, -r, r, r*2);
+            ctx.fillStyle = '#ffffff'; ctx.fillRect(0, -r, r, r*2);
+            ctx.save(); ctx.translate(r*0.5, 0); ctx.rotate(-0.55);
+            ctx.strokeStyle = '#d5a400'; ctx.lineWidth = Math.max(2,r*0.12);
+            ctx.beginPath(); ctx.moveTo(-r*.36,-r*.45); ctx.lineTo(r*.34,r*.42);
+            ctx.moveTo(r*.36,-r*.45); ctx.lineTo(-r*.34,r*.42); ctx.stroke();
+            ctx.fillStyle = '#d5a400';
+            ctx.beginPath(); ctx.arc(-r*.36,-r*.45,r*.13,0,Math.PI*2); ctx.arc(r*.36,-r*.45,r*.13,0,Math.PI*2); ctx.fill();
+            ctx.restore();
+        } else if (type === 'iran') {
+            ctx.fillStyle = "#228b22"; ctx.fillRect(-r, -r, r*2, r*0.66); ctx.fillStyle = "#ffffff"; ctx.fillRect(-r, -r+r*0.66, r*2, r*0.66);
+            ctx.fillStyle = "#da251d"; ctx.fillRect(-r, -r+r*1.32, r*2, r*0.66); ctx.fillStyle = "#da251d"; ctx.font = "11px Arial"; ctx.fillText("☫", -5, 4);
+        }
+    }
+
+    function drawWeapon(ctx, type, r) {
+        ctx.fillStyle = "#7f8c8d";
+        if (type === 'usa') {
+            ctx.fillRect(r * 0.4, -4, 16, 8); ctx.fillStyle = "#e74c3c"; ctx.fillRect(r * 0.4 + 16, -2, 4, 4);
+        } else if (type === 'soviet') {
+            ctx.fillStyle = "#ffcc00"; ctx.font = "bold 16px Arial"; ctx.fillText("☭", r * 0.4, 6);
+        } else if (type === 'uk') {
+            ctx.fillStyle = "#8b5a2b"; ctx.fillRect(r * 0.2, 2, 22, 5); ctx.fillStyle = "#fff"; ctx.fillRect(r * 0.2 + 22, 1, 3, 7);
+        } else if (type === 'russia') {
+            ctx.fillStyle = "#fff"; ctx.fillRect(r * 0.3, -2, 12, 18); ctx.fillStyle = "#e74c3c"; ctx.fillRect(r * 0.3, -6, 12, 4);
+        } else if (type === 'north_korea') {
+            ctx.fillStyle = "#34495e"; ctx.fillRect(r * 0.2, -6, 20, 12); ctx.fillStyle = "#e74c3c"; ctx.beginPath(); ctx.moveTo(r*0.2+20, -6); ctx.lineTo(r*0.2+28, 0); ctx.lineTo(r*0.2+20, 6); ctx.fill();
+        }
+    }
+
+    function drawOffscreenIndicators() {
+        players.forEach(p => {
+            if (p.stocks <= 0 || p.suicidePending > 0) return;
+            let isOff = p.x < 0 || p.x > canvas.width || p.y < 0 || p.y > canvas.height - 80;
+            if (!isOff) return;
+
+            let edgeX = Math.max(25, Math.min(canvas.width - 25, p.x));
+            let edgeY = Math.max(25, Math.min(canvas.height - 105, p.y));
+            let angle = Math.atan2(p.y - edgeY, p.x - edgeX);
+
+            ctx.save();
+            ctx.translate(edgeX, edgeY);
+            ctx.fillStyle = "rgba(10, 18, 25, 0.85)";
+            ctx.strokeStyle = TEAM_COLORS[p.team] || "#ffffff";
+            ctx.lineWidth = 3;
+            ctx.beginPath(); ctx.arc(0, 0, 20, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+
+            ctx.save();
+            ctx.rotate(angle);
+            ctx.fillStyle = TEAM_COLORS[p.team] || "#ffffff";
+            ctx.beginPath(); ctx.moveTo(22, 0); ctx.lineTo(14, -7); ctx.lineTo(14, 7); ctx.closePath(); ctx.fill();
+            ctx.restore();
+
+            ctx.save();
+            ctx.beginPath(); ctx.arc(0, 0, 13, 0, Math.PI * 2); ctx.clip();
+            if (['mongol_empire', 'palau', 'tuvalu', 'south_africa', 'united_nations', 'greece', 'vatican'].includes(p.type)) {
+                const mini = { ...p, x: 0, y: 0, r: 13, isHit: 0, state: 'idle' };
+                drawNewCharacterVisual(ctx, mini);
+            } else {
+                drawFlagPattern(ctx, p.type, 13);
+            }
+            ctx.restore();
+
+            ctx.beginPath(); ctx.arc(0, 0, 13, 0, Math.PI * 2); ctx.strokeStyle = "#000000"; ctx.lineWidth = 1.5; ctx.stroke();
+
+            ctx.fillStyle = "#ffffff"; ctx.font = "bold 10px Arial"; ctx.textAlign = "center";
+            ctx.shadowColor = "black"; ctx.shadowBlur = 4;
+            ctx.fillText(p.isCPU ? `CPU${p.id}${cpuLevel===7?'★':''}` : `P${p.id}`, 0, -24);
+            if(p.heldItem){ctx.font='bold 12px Arial';ctx.fillStyle='#f1c40f';ctx.fillText(({bomb:'💣 爆弾',banana:'🍌 バナナ',roulette:'🎲 ルーレット'}[p.heldItem]||''),0,-39);}
+            ctx.restore();
+        });
+    }
+
+    function activateUltimate(p, combinedShot = false) {
+        let ultType = p.charData.ult; p.ultState = ultType;
+
+        if (ultType === 'greek_divine') {
+            p.ultTimer = 120; p.divinePhase = 0; p.invincible = 120;
+            p.divineStartX = p.x; p.divineStartY = p.y;
+            p.y = Math.max(p.r + 42, p.y - 48); p.vx = 0; p.vy = 0;
+            p.divineHitIds = [];
+            playHeavySFX('ultimate');
+        }
+        else if (ultType === 'vatican_thunder') {
+            p.ultTimer = 450; p.invincible = 450; p.vaticanLHeld = false; p.vaticanKHeld = false; p.vaticanFired = false;
+            p.vaticanOrigin = {x:p.x, y:p.y};
+            // 発動時は向いている側の画面端へ移動し、円全体が見える上端位置へ。
+            p.x = p.facing >= 0 ? canvas.width - p.r - 2 : p.r + 2;
+            p.y = p.r + 2;
+            p.vx = 0; p.vy = 0;
+            playHeavySFX('ultimate');
+        }
+        else if (ultType === 'beam') { p.ultTimer = 180; } 
+        else if (ultType === 'zerosen') { 
+            p.ultTimer = 240; p.ultLaunchX = p.x; p.ultLaunchY = p.y; p.ultStartFacing = p.facing; p.ultRoundTrip = 0;
+            p.invincible = 2;
+        } 
+        else if (ultType === 'tank') { p.ultTimer = 360; p.tankJumpWindow = 18; p.tankSecretJumps = 0; } 
+        else if (ultType === 'suicide') { p.ultTimer = 90; } 
+        else if (ultType === 'qing') {
+            p.ultTimer = 600;
+            p.ultState = 'qing';
+            p.qingArmor = 500;
+            p.invincible = 0;
+        }
+        else if (ultType === 'italy_leg') {
+            p.ultTimer = 45;
+            p.ultState = 'italy_leg';
+            p.invincible = 45;
+            p.italyLegStartX = p.x;
+            p.italyLegFacing = p.facing;
+        }
+        else if (ultType === 'buff' && p.type === 'australia') {
+            kangarooAssist = { ownerId:p.id, x:p.x, y:p.y, vx:0, vy:0, timer:600, attackCooldown:0, jumpTimer:0, facing:p.facing };
+            p.ultState = null; p.ultTimer = 0; p.ultReadyCooldown = 1200;
+            if (onlineBattle && onlineRole === 'host') onlineSend({type:'kangaroo',assist:kangarooAssist});
+        }
+        else if (ultType === 'buff') { p.ultTimer = 400; } 
+        else if (ultType === 'pizza') { p.ultTimer = 300; p.pizzaMode = true; } 
+        else if (ultType === 'vodka_slow') {
+            projectiles.push({x:p.x+p.facing*35,y:p.y-15,vx:p.facing*8,vy:-6,owner:p,pType:'vodka_bottle',timer:150,r:12});
+            p.ultState=null; p.ultReadyCooldown=1200; playHeavySFX('ultimate');
+        } 
+        else if (ultType === 'opium') {
+            players.forEach(t => { 
+                if(t !== p && (gameMode==='free' || t.team!==p.team)) { 
+                    let dist = Math.sqrt((t.x - p.x)**2 + (t.y - p.y)**2);
+                    if (dist < 366.67) {
+                        if (t.invincible > 0) return;
+                        if (t.type === 'china' && t.ultState === 'qing' && t.qingArmor > 0) { t.qingArmor = Math.max(0, t.qingArmor - 50); spawnParticles(t.x,t.y,'#ffd700',5,2); return; }
+                        t.damage += 50; t.vx += (t.x > p.x ? 18 : -18); t.vy -= 8; 
+                    }
+                } 
+            });
+            for (let s = 0; s < 110; s++) {
+                let angle = Math.random() * Math.PI * 2;
+                let radius = Math.random() * 366.67;
+                particles.push({
+                    x: p.x + Math.cos(angle) * radius, y: p.y + Math.sin(angle) * radius,
+                    vx: (Math.random() - 0.5) * 6, vy: (Math.random() - 0.5) * 6,
+                    radius: Math.random() * 22 + 10, color: 'rgba(155, 89, 182, 0.45)', alpha: 1, decay: 0.012
+                });
+            }
+            p.ultState = null; p.ultReadyCooldown = 1200;
+        }
+        else if (ultType === 'un_atomic_breath') {
+            p.ultTimer = 138; // 90フレームの溜め + 48フレームの発射
+            p.ultState = 'un_atomic_breath';
+            p.unBeamFacing = p.facing;
+            p.unBeamFired = false;
+            p.unBeamHitIds = [];
+            p.vx = 0; p.vy = 0;
+            p.invincible = 2;
+            playHeavySFX('ultimate');
+        }
+        else if (ultType === 'giant') {
+            p.ultTimer = 450;
+            p.originalRadius = p.r;
+            p.r = 68;
+            p.ultState = 'giant';
+            p.invincible = 2;
+        }
+        else if (ultType === 'five_dollar') {
+            p.ultTimer = 300;
+            p.ultState = 'five_dollar';
+            p.invincible = 2;
+        }
+        else if (ultType === 'pooh') {
+            p.ultTimer = 600; 
+            projectiles.push({
+                x: p.x + p.facing * 50, y: p.y - 10,
+                vx: p.facing * 3.5, vy: -1.5,
+                owner: p, pType: 'pooh_bear', timer: 900, r: 45
+            });
+        }
+        else if (ultType === 'semicon') { p.ultTimer = 350; }
+        else if (ultType === 'poland_hussars') {
+            if (combinedShot) {
+                // J+K+L：同じ軌道・同じ位置に2発を重ねて発射
+                for(let n=0;n<2;n++) projectiles.push({x:p.x+p.facing*32,y:p.y-5,vx:p.facing*16,vy:0,owner:p,pType:'history_shot',kind:'poland',timer:95,r:9,damage:19.25,hitIds:[],color:'#e74c3c',mark:'翼'});
+            } else {
+                // 通常必殺技：斜め方向へ2本
+                [-0.24,0.24].forEach(a=>projectiles.push({x:p.x+p.facing*32,y:p.y-5,vx:Math.cos(a)*16*p.facing,vy:Math.sin(a)*16,owner:p,pType:'history_shot',kind:'poland',timer:95,r:9,damage:19.25,hitIds:[],color:'#e74c3c',mark:'翼'}));
+            }
+            p.ultState=null;p.ultReadyCooldown=1200;playHeavySFX('ultimate');
+        }
+        else if (ultType === 'ah_dual') {
+            if (combinedShot) {
+                // J+K+L：2発の紋章弾を同じ位置・軌道に重ねて発射
+                for(let n=0;n<2;n++) projectiles.push({x:p.x+p.facing*28,y:p.y,vx:p.facing*12.7,vy:-1.9,owner:p,pType:'history_shot',kind:'ah',timer:225,r:12,damage:15.75,hitIds:[],color:'#f1c40f',mark:'A'});
+            } else {
+                // 通常必殺技：オーストリア側とハンガリー側から二つの紋章弾
+                [-0.18,0.18].forEach((a,i)=>projectiles.push({x:p.x+p.facing*28,y:p.y+(i?8:-8),vx:Math.cos(a)*13*p.facing,vy:Math.sin(a)*13,owner:p,pType:'history_shot',kind:'ah',timer:225,r:12,damage:15.75,hitIds:[],color:i?'#c0392b':'#f1c40f',mark:i?'H':'A'}));
+            }
+            p.ultState=null;p.ultReadyCooldown=1200;playHeavySFX('ultimate');
+        }
+        else if (ultType === 'canada_maple') {
+            // メープルリーフ：一度だけ折り返す葉っぱ型ブーメラン
+            projectiles.push({x:p.x+p.facing*35,y:p.y-12,vx:p.facing*15,vy:-1.5,owner:p,pType:'history_shot',kind:'canada',timer:110,r:15,damage:22.75,hitIds:[],color:'#e53935',mark:'✦',age:0,baseVY:-1.5});
+            p.ultState=null;p.ultReadyCooldown=1200;playHeavySFX('ultimate');
+        }
+        else if (ultType === 'manchukuo_five') {
+            // 五色旗：五色の小さな光弾を扇状に放つ（継続時間を2秒延長）
+            ['#e8c547','#ffffff','#2878bd','#d94a3d','#35a45b'].forEach((color,i)=>{const a=(-0.72+i*0.36)*p.facing;projectiles.push({x:p.x+p.facing*30,y:p.y-3,vx:Math.cos(a)*11,vy:Math.sin(a)*11,owner:p,pType:'history_shot',kind:'manchu',timer:210,r:7,damage:10.5,hitIds:[],color,mark:''});});
+            p.ultState=null;p.ultReadyCooldown=1200;playHeavySFX('ultimate');
+        }
+        else if (ultType === 'india_chakra') {
+            // アショーカ・チャクラ：低威力の回転輪。命中した相手を短時間だけ減速。
+            projectiles.push({x:p.x+p.facing*32,y:p.y-8,vx:p.facing*12,vy:0,owner:p,pType:'history_shot',kind:'india',timer:220,r:16,damage:17.5,hitIds:[],color:'#2878bd',mark:'☸'});
+            p.ultState=null;p.ultReadyCooldown=1200;playHeavySFX('ultimate');
+        }
+        else if (ultType === 'soccer_shot') {
+            // 直線一発ではなく、上下に散る高速シュート5発。各ボールは5秒間画面内で反射。
+            const angles = [-0.78, -0.36, 0, 0.36, 0.78];
+            angles.forEach((a,idx) => {
+                const angle = a;
+                const speed = 25;
+                projectiles.push({x:p.x+p.facing*35,y:p.y-4,vx:Math.cos(angle)*speed*p.facing,vy:Math.sin(angle)*speed,owner:p,pType:'soccer_ball',timer:300,r:11,hitIds:[],damage:12});
+            });
+            p.ultState = null; p.ultReadyCooldown = 1200;
+            playHeavySFX('ultimate');
+        }
+        else if (ultType === 'missile10') {
+            for(let k=0; k<10; k++) { projectiles.push({ x: 100 + k*90, y: -50 - k*30, vx: 2*(5/7), vy: 12*(5/7), owner: p, pType: 'nuke_drop' }); }
+            p.ultState = null; p.ultReadyCooldown = 1200;
+        }
+        else if (ultType === 'missile3_drone') {
+            let enemyTargets = players.filter(t => t !== p && t.stocks > 0 && (gameMode === 'free' || t.team !== p.team));
+            for (let k = 0; k < 3; k++) {
+                let tx = enemyTargets.length > 0 ? enemyTargets[Math.floor(Math.random() * enemyTargets.length)].x : 200 + Math.random() * 600;
+                projectiles.push({
+                    x: tx + (k - 1) * 90, 
+                    y: -60 - k * 50,     
+                    vx: 0, vy: 11, owner: p, pType: 'nuke_drop'
+                });
+            }
+            projectiles.push({
+                x: p.facing === 1 ? 20 : canvas.width - 20, y: 110, vx: p.facing * 5, vy: 0, owner: p, pType: 'drone', timer: 300 
+            });
+            p.ultState = null; p.ultReadyCooldown = 1200;
+        }
+        else if (ultType === 'nuke') {
+            projectiles.push({ 
+                x: p.x + p.facing * 30, y: p.y - 15, 
+                vx: p.facing * 5.5, vy: -9.0,
+                owner: p, pType: 'nuke_throw' 
+            });
+            p.ultState = null; p.ultReadyCooldown = 1200;
+        }
+    }
+
+    function fireUNAtomicBreath(p) {
+        const dir = p.unBeamFacing || p.facing;
+        const originX = p.x + dir * 38;
+        const originY = p.y - 3;
+        if (!Array.isArray(p.unBeamHitIds)) p.unBeamHitIds = [];
+        // 発射中は毎フレーム判定。1人につき1回だけ直撃する。
+        players.forEach(t => {
+            if (t === p || t.stocks <= 0 || p.unBeamHitIds.includes(t.id)) return;
+            if (gameMode === 'team' && t.team === p.team) return;
+            const forward = (t.x - originX) * dir;
+            if (forward < 0 || forward > 940 || Math.abs(t.y-originY) > t.r + 70) return;
+            p.unBeamHitIds.push(t.id);
+            // 直撃は500%。重量級補正後も500%になるよう調整。
+            const attackerMultiplier = p.stats && p.stats.damage ? p.stats.damage : 1;
+            applyDamage(t, p, 500 / attackerMultiplier, 42, 0.42, false, dir, true);
+            spawnParticles(t.x,t.y,'#8feaff',90,18);
+            // フランスの自滅技に近い巨大な多重衝撃波。青色で周囲も巻き込む。
+            explosionEffects.push({x:t.x,y:t.y,timer:45,maxR:1040,kind:'atomic'});
+            players.forEach(v => {
+                if (v === p || v === t || v.stocks <= 0 || (gameMode === 'team' && v.team === p.team)) return;
+                const d = Math.hypot(v.x-t.x,v.y-t.y);
+                if (d <= 240) applyDamage(v,p,180/attackerMultiplier,34,0.30,false,v.x>=t.x?1:-1);
+            });
+            spawnParticles(t.x,t.y,'#35bfff',150,25);
+            spawnParticles(t.x,t.y,'#dffaff',90,20);
+            playHeavySFX('ultimate');
+            setTimeout(() => playHeavySFX('ko'), 90);
+        });
+        // ビーム本体の青白い粒子
+        for(let i=0;i<12;i++) {
+            const x=originX+dir*(Math.random()*940), y=originY+(Math.random()-0.5)*48;
+            particles.push({x,y,vx:dir*(3+Math.random()*8),vy:(Math.random()-0.5)*4,radius:3+Math.random()*8,color:i%3===0?'#fff':'#65dfff',alpha:1,decay:0.035});
+        }
+    }
+
+        function checkGiantCollisions(p) {
+        players.forEach(t => {
+            if (t === p || t.invincible > 0 || t.stocks <= 0) return;
+            if (t.type === 'china' && t.ultState === 'qing' && t.qingArmor > 0) { t.qingArmor = Math.max(0,t.qingArmor-35); return; }
+            if (gameMode === 'team' && t.team === p.team) return;
+            const dist = Math.hypot(t.x - p.x, t.y - p.y);
+            if (dist < p.r + t.r + 8) {
+                applyDamage(t, p, 8, 22, 0.20, false, t.x >= p.x ? 1 : -1);
+            }
+        });
+    }
+
+    function checkItalyLegCollisions(p) {
+        const progress = 1 - (p.ultTimer / 45);
+        const reach = (25 + 125 * Math.min(1, progress)) * (5/3);
+        const centerX = p.x + p.facing * (p.r + reach * 0.5);
+        players.forEach(t => {
+            if (t === p || t.invincible > 0 || t.stocks <= 0) return;
+            if (gameMode === 'team' && t.team === p.team) return;
+            if (Math.abs(t.x - centerX) < reach * 0.55 + t.r && Math.abs(t.y - p.y) < p.r + 34) {
+                // 100% damage; heavier classes receive slightly less knockback.
+                const taken = (t.stats && typeof t.stats.damageTaken === 'number') ? t.stats.damageTaken : 1;
+                const weightFactor = Math.max(0.78, Math.min(1.12, 1.06 - (taken - 1) * 1.5));
+                const dir = t.x >= p.x ? 1 : -1;
+                applyDamage(t, p, 100, 38 * weightFactor, 0.45 * weightFactor, false, dir);
+                t.vx = dir * Math.max(Math.abs(t.vx), 32 * weightFactor);
+                t.vy = -Math.max(Math.abs(t.vy), 13 * weightFactor);
+                spawnParticles(t.x, t.y, '#168447', 28, 9);
+            }
+        });
+    }
+
+    function fireBeamLogic(p) {
+        players.forEach(t => {
+            if (t === p || t.invincible > 0 || t.stocks <= 0) return;
+            if (gameMode === 'team' && t.team === p.team) return;
+            let inside = p.facing === 1 ? (t.x > p.x && t.x < p.x + 1100) : (t.x < p.x && t.x > p.x - 1100);
+            if (inside && Math.abs(t.y - p.y) < 55) { applyDamage(t, p, 15, 7 * 0.33, 0.05 * 0.33, false, p.facing); }
+        });
+    }
+
+    function checkZerosenCollisions(p) {
+        players.forEach(t => {
+            if (t === p || t.invincible > 0 || t.stocks <= 0) return;
+            if (gameMode === 'team' && t.team === p.team) return;
+            let dist = Math.sqrt((t.x - p.x)**2 + (t.y - p.y)**2);
+            if (dist < t.r + 45) {
+                const damageTaken = (t.stats && typeof t.stats.damageTaken === 'number') ? t.stats.damageTaken : 1;
+                const knockbackFactor = Math.max(0.72, Math.min(1.12, 1.05 - (damageTaken - 1) * 1.7));
+                const dir = t.x >= p.x ? 1 : -1;
+                applyDamage(t, p, 55, 25 * knockbackFactor, 0.42 * knockbackFactor, false, dir);
+                t.vx = dir * Math.max(Math.abs(t.vx), 22 * knockbackFactor);
+                t.vy = -Math.max(Math.abs(t.vy), 9 * knockbackFactor);
+                spawnParticles(t.x, t.y, '#e67e22', 18, 7);
+            }
+        });
+    }
+
+    function checkTankRunOver(p) {
+        players.forEach(t => {
+            if (t === p || t.invincible > 0 || t.stocks <= 0) return;
+            if (gameMode === 'team' && t.team === p.team) return;
+            let dist = Math.sqrt((t.x - p.x)**2 + (t.y - p.y)**2);
+            if (dist < t.r + 40) {
+                applyDamage(t, p, 999, 36, 0.4, false, p.facing);
+                spawnParticles(t.x, t.y, '#ff3333', 40, 14);
+            }
+        });
+    }
+
+    function checkSemiconCollisions(p) {
+        players.forEach(t => {
+            if (t === p || t.invincible > 0 || t.stocks <= 0) return;
+            if (gameMode === 'team' && t.team === p.team) return;
+            let dist = Math.sqrt((t.x - p.x)**2 + (t.y - p.y)**2);
+            if (dist < t.r + 150) { t.vx *= 0.2; t.vy *= 0.2; if (Math.random() < 0.1) applyDamage(t, p, 1, 1, 0, false, p.facing); }
+        });
+    }
+
+    function triggerSuicideExplosion(p) {
+        // 中心フラッシュ
+        spawnParticles(p.x, p.y, '#ffffff', 140, 26);
+        spawnParticles(p.x, p.y, '#ffcf33', 100, 22);
+        spawnParticles(p.x, p.y, '#ff4d4d', 90, 18);
+
+        // 巨大な多重衝撃波を描画用オブジェクトとして残す
+        explosionEffects.push({
+            x: p.x, y: p.y, timer: 45,
+            maxR: 1040
+        });
+
+        // 爆発音を段階的に鳴らす
+        playHeavySFX('ultimate');
+        setTimeout(() => playHeavySFX('ko'), 90);
+        setTimeout(() => playHeavySFX('ultimate'), 180);
+
+        players.forEach(t => {
+            if (t === p || t.invincible > 0 || t.stocks <= 0) return;
+            if (gameMode === 'team' && t.team === p.team) return;
+            const dist = Math.hypot(t.x - p.x, t.y - p.y);
+
+            if (dist < 720) {
+                t.damage += 35;
+                t.isHit = Math.max(t.isHit, 25);
+                const kbDir = t.x >= p.x ? 1 : -1;
+                const kb = 18 + t.damage * 0.12;
+                t.vx = kbDir * kb;
+                t.vy = -kb * 0.45 - 2;
+            }
+
+            if (dist < 480) {
+                t.stocks = Math.max(0, t.stocks - 1);
+                t.damage = 0;
+                t.vx = 0; t.vy = 0;
+                t.invincible = t.stocks > 0 ? 180 : 0; t.respawnLock = t.stocks > 0 ? 60 : 0;
+                if (t.stocks > 0) {
+                    t.x = t.startX;
+                    t.y = findGroundY(t.startX) - t.r;
+                }
+            }
+        });
+
+        p.suicidePending = 45;
+        p.ultState = null;
+        p.ultTimer = 0;
+        p.ultReadyCooldown = 1200;
+    }
+
+
+    function resolveGreekDivine(p) {
+        players.forEach(t => {
+            if (t === p || t.stocks <= 0 || (gameMode === 'team' && t.team === p.team)) return;
+            // CPUは厳密に5%でジャストガード。人間は通常と同じ6フレームの受付中のみ成功。
+            // シールドを張り続けるだけでは防げず、通常の短いジャストガード入力だけが有効。
+            const cpuJustGuard = t.isCPU && Math.random() < 0.05;
+            const humanJustGuard = !t.isCPU && t.state === 'shield' && t.justGuardWindow > 0;
+            if (cpuJustGuard || humanJustGuard) {
+                t.justGuardWindow = 0; t.state = 'idle';
+                t.vx = (t.x >= p.x ? 1 : -1) * 2;
+                // ジャストガード成功者1人につき、ギリシャへ1000%を反射する。
+                // 必殺技中のギリシャ自身の無敵時間も貫通させる。
+                applyDamage(p, t, 1000, 36, 0.20, false, p.x >= t.x ? 1 : -1, false, true);
+                spawnParticles(t.x,t.y,'#fff4b0',22,6);
+                spawnParticles(p.x,p.y,'#fff4b0',18,5);
+                return;
+            }
+            // 必中・無敵貫通。シールドはジャストガード以外では防げない。
+            t.state = 'idle'; t.shieldHP = Math.min(100,t.shieldHP);
+            applyDamage(t,p,1000,36,0.20,false,t.x>=p.x?1:-1,false,true);
+            spawnParticles(t.x,t.y,'#fff2b0',34,9);
+            projectiles.push({x:t.x,y:t.y-4,vx:0,vy:0,owner:p,pType:'divine_cross',timer:60,r:38,targetId:t.id,hitIds:[]});
+        });
+        spawnParticles(p.x,p.y,'#fff1a8',45,8);
+    }
+
+    function fireVaticanThunder(p) {
+        const x = p.x, y0 = p.y + p.r;
+        const timerAtFirstDraw = 23;
+        const bottom = Math.min(canvas.height-80, y0+900);
+        const wob = Math.sin(timerAtFirstDraw*1.7)*10;
+        // 描画処理と同じ折れ線（主雷＋左右の枝）を当たり判定にも使う。
+        const segments = [
+            [x,y0,x+wob-18,y0+bottom*.28],
+            [x+wob-18,y0+bottom*.28,x-8,y0+bottom*.53],
+            [x-8,y0+bottom*.53,x+wob+16,bottom],
+            [x-8,y0+bottom*.53,x-100,y0+bottom*.66],
+            [x+4,y0+bottom*.62,x+120,y0+bottom*.78]
+        ];
+        const nearSegment = (px,py,seg,radius) => {
+            const [ax,ay,bx,by] = seg, dx=bx-ax, dy=by-ay;
+            const len2=dx*dx+dy*dy;
+            const u=len2 ? Math.max(0,Math.min(1,((px-ax)*dx+(py-ay)*dy)/len2)) : 0;
+            return Math.hypot(px-(ax+u*dx),py-(ay+u*dy)) <= radius;
+        };
+        projectiles.push({x, y:y0, vx:0, vy:0, owner:p, pType:'vatican_lightning', timer:24, r:62});
+        players.forEach(t => {
+            if (t === p || t.stocks <= 0 || (gameMode === 'team' && t.team === p.team)) return;
+            // 線の太さ（42px）の半分＋相手の半径以内に入った場合だけ命中。
+            if (!segments.some(seg => nearSegment(t.x,t.y,seg,t.r+21))) return;
+            t.state = 'idle';
+            applyDamage(t,p,1000,42,0.22,false,t.x>=x?1:-1,false,true);
+            spawnParticles(t.x,t.y,'#fff36a',34,9);
+        });
+        spawnParticles(x,y0+80,'#fff36a',24,8);
+        playHeavySFX('ultimate');
+    }
+
+    function applyDamage(target, attacker, dmg, kbBase, kbScale, isGrab, facing, pierceArmor = false, bypassInvincible = false) {
+        if (!target || target.stocks <= 0) return;
+        // 無敵時間中はダメージ・吹き飛ばしを含む攻撃効果を一切受けない。
+        if (target.invincible > 0 && !bypassInvincible) return;
+        // 中国の必殺技は合計500ダメージ分のアーマーで攻撃を完全に防ぐ。
+        if (!pierceArmor && target.type === 'china' && target.ultState === 'qing' && target.qingArmor > 0) {
+            target.qingArmor = Math.max(0, target.qingArmor - Math.max(0, dmg));
+            spawnParticles(target.x, target.y, '#ffd700', 5, 2);
+            return;
+        }
+        if (cheatMode && target.id === 1) {
+            dmg = 0;
+            kbBase *= 0.1;
+            kbScale = 0;
+        }
+
+        if (attacker && attacker.ultReadyCooldown !== undefined) {
+            attacker.ultReadyCooldown = Math.max(0, attacker.ultReadyCooldown - 12);
+            if (attacker.stats && attacker.stats.damage !== undefined) {
+                dmg *= attacker.stats.damage;
+                kbBase *= attacker.stats.damage;
+            }
+        }
+
+        // 重量級ほど被ダメージを少し軽減。
+        if (target && target.stats && target.stats.damageTaken !== undefined) {
+            dmg *= target.stats.damageTaken;
+        }
+        if (target && target.ultReadyCooldown !== undefined) {
+            target.ultReadyCooldown = Math.max(0, target.ultReadyCooldown - 24);
+        }
+
+        if (target.state === 'shield' && !isGrab && target.shieldBreakTimer <= 0 && target.shieldHP > 0) {
+            target.shieldHP -= dmg * 0.4; spawnParticles(target.x, target.y, '#3498db', 4, 2);
+            if (target.justGuardWindow > 0) { attacker.isHit = 40; attacker.vx = -attacker.facing * 8; playJustGuardSFX(); }
+            if (target.shieldHP <= 0) { target.shieldHP = 0; target.state = 'idle'; target.shieldBreakTimer = 120; target.justGuardWindow = 0; spawnParticles(target.x,target.y,'#8edcff',18,5); }
+            return;
+        }
+        target.damage += dmg;
+        target.isHit = Math.max(target.isHit, 25);
+        // 被弾後に古い攻撃状態を残して操作不能になるのを防ぐ
+        if (target.state === 'attack') {
+            target.state = 'idle';
+            target.actionTimer = 0;
+            target.currentAttack = null;
+        }
+        let koFactor = 1;
+        if (target.stats && target.stats.koZone !== undefined && target.damage > target.stats.koZone) {
+            koFactor += (target.damage - target.stats.koZone) / target.stats.koZone * 0.55;
+        }
+        let totalKb = (kbBase + (target.damage * kbScale)) * koFactor;
+        target.vx = facing * totalKb * 0.9; target.vy = -totalKb * 0.45 - 2;
+        spawnParticles(target.x, target.y, '#ff4d4d', 8, totalKb * 0.3);
+    }
+
+    function useBattleItem(owner){
+        const kind=owner.heldItem; owner.heldItem=null; if(!kind)return;
+        const enemies=players.filter(t=>t!==owner&&t.stocks>0&&(gameMode!=='team'||t.team!==owner.team));
+        if(kind==='bomb'){const x=owner.x+owner.facing*42,y=owner.y; explosionEffects.push({x,y,timer:45,maxR:100});spawnParticles(x,y,'#ff7043',30,8);enemies.forEach(t=>{const d=Math.hypot(t.x-x,t.y-y);if(d<100)applyDamage(t,owner,12,10,0.12,t.justGuardWindow>0, t.x>=x?1:-1);});}
+        else if(kind==='banana'){battleItems.push({x:owner.x+owner.facing*38,y:owner.y+owner.r,kind:'bananaTrap',life:900,ownerId:owner.id});}
+        else if(kind==='roulette'){if(Math.random()<0.5){owner.itemStopTimer=180;}else if(enemies.length){const target=enemies[Math.floor(Math.random()*enemies.length)];target.itemStopTimer=180;}}
+        spawnParticles(owner.x,owner.y,'#f1c40f',12,5);
+    }
+
+    function runCPUAI(p) {
+        // CPUの行動をレベル別に管理。攻撃クールダウンは実フレームで減るため、
+        // レベルを変えると対戦中の攻撃回数・反応・狙いの精度が明確に変化する。
+        Object.keys(p.cpuKeys).forEach(k => p.cpuKeys[k] = false);
+        if (p.suicidePending > 0) return;
+
+        const level = Math.max(1, Math.min(7, Number(cpuLevel) || 6));
+        const expert = level === 7;
+        const profiles = {
+            1: { reaction:0.30, accuracy:0.42, attackGap:82, attackChance:0.30, guard:0.00, jump:0.20, ultChance:0.002 },
+            2: { reaction:0.43, accuracy:0.56, attackGap:62, attackChance:0.43, guard:0.04, jump:0.35, ultChance:0.006 },
+            3: { reaction:0.58, accuracy:0.70, attackGap:43, attackChance:0.58, guard:0.10, jump:0.52, ultChance:0.014 },
+            4: { reaction:0.76, accuracy:0.86, attackGap:27, attackChance:0.76, guard:0.22, jump:0.72, ultChance:0.030 },
+            5: { reaction:0.92, accuracy:0.97, attackGap:15, attackChance:0.94, guard:0.38, jump:0.90, ultChance:0.060 },
+            6: { reaction:1.00, accuracy:1.00, attackGap:8,  attackChance:1.00, guard:0.48, jump:1.00, ultChance:0.095 },
+            7: { reaction:1.00, accuracy:1.00, attackGap:5,  attackChance:1.00, guard:0.50, jump:1.00, ultChance:0.12 }
+        };
+        const cfg = profiles[level];
+        if (p.cpuAttackCooldown == null) p.cpuAttackCooldown = 0;
+        if (p.cpuGuardCooldown == null) p.cpuGuardCooldown = 0;
+        if (p.cpuAttackCooldown > 0) p.cpuAttackCooldown--;
+        if (p.cpuGuardCooldown > 0) p.cpuGuardCooldown--;
+
+        let target = null, minDist = Infinity;
+        players.forEach(t => {
+            if (t === p || t.stocks <= 0 || t.suicidePending > 0) return;
+            if (gameMode === 'team' && t.team === p.team) return;
+            const d = Math.hypot(t.x - p.x, t.y - p.y);
+            if (d < minDist) { minDist = d; target = t; }
+        });
+        if (!target) return;
+
+        const dx = target.x - p.x;
+        const dy = target.y - p.y;
+        const distance = Math.hypot(dx, dy);
+        const facingDir = dx < 0 ? -1 : 1;
+        p.cpuTargetDx = dx;
+        if (p.cpuFacingTurnCooldown > 0) p.cpuFacingTurnCooldown--;
+        // CPUは対象が十分に反対側へ移動したときだけ向きを変える。
+        // 近距離で左右入力が揺れても、毎フレーム反転しない。
+        if (Math.abs(dx) > 42 && p.facing !== facingDir && p.cpuFacingTurnCooldown <= 0) {
+            p.facing = facingDir; p.cpuFacingTurnCooldown = 12;
+        }
+        const canReact = expert || Math.random() < cfg.reaction;
+        let hazardDetected = false;
+
+        // 飛び道具への反応。低レベルほど見落とし、高レベルほど回避する。
+        projectiles.forEach(proj => {
+            if (proj.owner === p || Math.hypot(proj.x - p.x, proj.y - p.y) > 145) return;
+            if (!canReact && !expert) return;
+            hazardDetected = true;
+            if (Math.random() < cfg.accuracy) {
+                if (proj.x > p.x) p.cpuKeys.a = true; else p.cpuKeys.d = true;
+                if (proj.y < p.y + 35 && p.isGrounded && Math.random() < cfg.jump) p.cpuKeys.w = true;
+            }
+            // 玄人は接近する攻撃を約50%の確率でジャストガードする。
+            if (expert && p.cpuGuardCooldown <= 0 && Math.hypot(proj.x-p.x, proj.y-p.y) < 92 && Math.random() < 0.50) {
+                p.cpuKeys.s = true; p.cpuGuardCooldown = 18;
+            }
+        });
+
+        if (target.ultState === 'tank' && distance < 270 && canReact) {
+            hazardDetected = true;
+            if (target.x > p.x) p.cpuKeys.a = true; else p.cpuKeys.d = true;
+            if (p.isGrounded && Math.random() < cfg.jump) p.cpuKeys.w = true;
+        }
+
+        // 移動精度をレベルごとに変える。低レベルは接近方向を間違えたり、
+        // 近距離で無駄な横移動をしたりする。Lv5以上は適切な間合いを維持。
+        if (!hazardDetected || !canReact) {
+            const desiredDir = Math.abs(dx) > (level >= 5 ? 68 : 105) ? facingDir : (Math.sin((performance.now()/520)+p.id) > 0 ? 1 : -1);
+            const moveCorrect = Math.random() < cfg.accuracy;
+            const moveDir = moveCorrect ? desiredDir : -desiredDir;
+            if (level <= 2 && Math.random() < 0.28) {
+                // 初級CPUは時々立ち止まる
+            } else if (moveDir < 0) p.cpuKeys.a = true;
+            else p.cpuKeys.d = true;
+
+            if (target.y < p.y - 50 && p.isGrounded && Math.random() < cfg.jump) p.cpuKeys.w = true;
+            else if (p.y > target.y + 80 && p.isGrounded && Math.random() < cfg.jump * 0.12) p.cpuKeys.w = true;
+        }
+
+        // 攻撃頻度：クールダウンによりレベルごとの攻撃間隔を保証する。
+        // Lv1は間が長く空き、Lv5はほぼ連続して攻める。
+        if (minDist < 112 && p.cpuAttackCooldown <= 0 && !hazardDetected && Math.random() < cfg.attackChance) {
+            if (target.state === 'attack' && p.cpuGuardCooldown <= 0 && Math.random() < cfg.guard) {
+                p.cpuKeys.s = true;
+                p.cpuGuardCooldown = expert ? 12 : 24;
+            } else {
+                const r = Math.random();
+                if (r < (level <= 2 ? 0.12 : 0.22)) p.cpuKeys.k = true;
+                else if (r < 0.86) p.cpuKeys.j = true;
+                else p.cpuKeys.i = true;
+                p.cpuAttackCooldown = cfg.attackGap + Math.floor(Math.random() * Math.max(2, cfg.attackGap * 0.35));
+            }
+        }
+
+        // 必殺技もレベル別の判断頻度で使用。Lv1は温存しがち、Lv5は好機を逃しにくい。
+        if (p.ultReadyCooldown === 0 && minDist < 260 && !p.ultState && canReact && Math.random() < cfg.ultChance) {
+            p.cpuKeys.l = true;
+        }
+
+        // 玄人：攻撃の50%をジャストガード、吹っ飛び中は毎フレームベクトル変更。
+        // 攻撃精度100%。ドイツ系は戦車必殺技を起動し、距離で砲弾・毒弾を選ぶ。
+        if (expert) {
+            if (target.state === 'attack' && minDist < 125 && p.cpuGuardCooldown <= 0 && Math.random() < 0.50) {
+                p.cpuKeys.s = true; p.cpuGuardCooldown = 12;
+            }
+            if (Math.abs(dx) > 38) { if (dx < 0) p.cpuKeys.a = true; else p.cpuKeys.d = true; }
+            if (target.y < p.y - 24 && p.isGrounded) p.cpuKeys.w = true;
+            if (p.isHit > 0) {
+                if (p.vx > 0) p.cpuKeys.a = true; else if (p.vx < 0) p.cpuKeys.d = true;
+                if (p.vy > 0) p.cpuKeys.w = true;
+            }
+            const germanTankCPU = ['germany_empire','germany_nazi','germany_modern'].includes(p.type);
+            if (germanTankCPU && !p.ultState && p.ultReadyCooldown === 0 && p.isGrounded) p.cpuKeys.l = true;
+            if (germanTankCPU && p.ultState === 'tank') {
+                if (minDist < 360) p.cpuKeys.k = true;
+                else if (minDist < 620) p.cpuKeys.j = true;
+                if (Math.abs(dx) > 90) { if (dx < 0) p.cpuKeys.a = true; else p.cpuKeys.d = true; }
+            }
+            // 全ての被弾中に方向変更入力。空中では上入力も継続。
+            if (p.isHit > 0) { p.cpuKeys.a = p.vx > 0; p.cpuKeys.d = p.vx < 0; if (p.vy > 0) p.cpuKeys.w = true; }
+        }
+
+        // ステージ外への落下防止は全レベル共通の最低限の安全処理。
+        if (p.x < 120) { p.cpuKeys.a = false; p.cpuKeys.d = true; }
+        if (p.x > canvas.width - 120) { p.cpuKeys.d = false; p.cpuKeys.a = true; }
+        const underFoot = currentPlatforms.some(pl => p.x >= pl.x + 8 && p.x <= pl.x + pl.w - 8 && Math.abs((p.y + p.r) - pl.y) < 65);
+        if (p.isGrounded && !underFoot) {
+            if (p.x < canvas.width / 2) { p.cpuKeys.a = false; p.cpuKeys.d = true; }
+            else { p.cpuKeys.d = false; p.cpuKeys.a = true; }
+            p.cpuKeys.w = true;
+        }
+        if (p.y > canvas.height - 130) {
+            p.cpuKeys.w = true;
+            if (p.x < canvas.width / 2) { p.cpuKeys.a = false; p.cpuKeys.d = true; }
+            else { p.cpuKeys.d = false; p.cpuKeys.a = true; }
+        }
+    }
+
+    function drawExplosionEffects() {
+        for (let i = explosionEffects.length - 1; i >= 0; i--) {
+            const e = explosionEffects[i];
+            const progress = 1 - e.timer / 45;
+            const r = Math.max(10, e.maxR * Math.pow(progress, 0.55));
+            const alpha = 1 - progress;
+
+            ctx.save();
+            ctx.globalAlpha = alpha;
+            ctx.lineWidth = e.kind === 'atomic' ? 15 : 12;
+            ctx.strokeStyle = e.kind === 'atomic' ? '#e8fbff' : '#fff';
+            ctx.beginPath(); ctx.arc(e.x,e.y,r,0,Math.PI*2); ctx.stroke();
+            ctx.lineWidth = e.kind === 'atomic' ? 10 : 8;
+            ctx.strokeStyle = e.kind === 'atomic' ? '#53cfff' : '#ffcf33';
+            ctx.beginPath(); ctx.arc(e.x,e.y,r*0.82,0,Math.PI*2); ctx.stroke();
+            ctx.lineWidth = e.kind === 'atomic' ? 6 : 5;
+            ctx.strokeStyle = e.kind === 'atomic' ? '#246bff' : '#ff3b30';
+            ctx.beginPath(); ctx.arc(e.x,e.y,r*0.62,0,Math.PI*2); ctx.stroke();
+
+            ctx.globalAlpha = alpha * 0.65;
+            ctx.fillStyle = '#fff';
+            ctx.beginPath(); ctx.arc(e.x,e.y,Math.max(5,r*0.22),0,Math.PI*2); ctx.fill();
+            ctx.restore();
+
+            e.timer--;
+            if (e.timer <= 0) explosionEffects.splice(i,1);
+        }
+    }
+
+    function drawKangarooAssist(a) {
+        if (!a) return;
+        ctx.save(); ctx.translate(a.x,a.y); ctx.scale(a.facing||1,1);
+        ctx.fillStyle='#a86b32'; ctx.strokeStyle='#4b2e18'; ctx.lineWidth=2;
+        ctx.beginPath(); ctx.ellipse(0,0,18,15,0,0,Math.PI*2); ctx.fill(); ctx.stroke();
+        ctx.beginPath(); ctx.ellipse(-8,-15,6,13,-0.3,0,Math.PI*2); ctx.fill(); ctx.stroke();
+        ctx.beginPath(); ctx.ellipse(2,-15,6,13,0.3,0,Math.PI*2); ctx.fill(); ctx.stroke();
+        ctx.fillStyle='#fff'; ctx.beginPath(); ctx.arc(7,-3,3,0,Math.PI*2); ctx.fill(); ctx.fillStyle='#111'; ctx.beginPath(); ctx.arc(8,-3,1.5,0,Math.PI*2); ctx.fill();
+        ctx.restore();
+    }
+
+    function updateKangarooAssist() {
+        if (!kangarooAssist) return;
+        // Host simulates the assist; guest renders the latest shared state only.
+        if (onlineBattle && onlineRole === 'guest') { drawKangarooAssist(kangarooAssist); return; }
+        const a = kangarooAssist;
+        a.timer--; if (a.attackCooldown > 0) a.attackCooldown--;
+        if (a.timer <= 0) { kangarooAssist = null; return; }
+        const owner = players.find(p => p.id === a.ownerId);
+        let target = null, best = Infinity;
+        players.forEach(t => {
+            if (!owner || t === owner || t.stocks <= 0 || (gameMode === 'team' && t.team === owner.team)) return;
+            const d = Math.hypot(t.x-a.x,t.y-a.y); if (d < best) { best=d; target=t; }
+        });
+        if (target) {
+            a.facing = target.x >= a.x ? 1 : -1;
+            if (Math.abs(target.x-a.x) > 28) a.vx += a.facing * 0.18;
+            a.vx = Math.max(-1.5,Math.min(1.5,a.vx));
+            if (a.jumpTimer <= 0) { a.vy = -7.5; a.jumpTimer = 42; } // single jump, repeated like a kangaroo
+            if (a.attackCooldown <= 0 && best < 48) {
+                const dir = target.x >= a.x ? 1 : -1;
+                applyDamage(target, owner, 75, 15, 0, false, dir);
+                a.attackCooldown = 60; // one second between attacks
+                spawnParticles(target.x,target.y,'#d68910',12,5);
+            }
+        }
+        a.jumpTimer--; a.x += a.vx; a.vy += 0.45; a.y += a.vy; a.vx *= 0.94;
+        const floor = currentPlatforms.find(pl => a.x >= pl.x && a.x <= pl.x+pl.w && a.y+20 >= pl.y && a.y+20 <= pl.y+20 && a.vy >= 0);
+        if (floor) { a.y = floor.y-20; a.vy = 0; }
+        a.x = Math.max(20,Math.min(canvas.width-20,a.x));
+        if (a.y > canvas.height-100) { a.y = findGroundY(a.x)-20; a.vy = 0; }
+        drawKangarooAssist(a);
+    }
+
+    function gameLoop() {
+        if (!gameStarted) return;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.save();
+        if(stageInvertedTimer>0){ctx.translate(0,canvas.height);ctx.scale(1,-1);}
+        stageFrame++;
+        if (stageInvertedTimer > 0) stageInvertedTimer--;
+        currentPlatforms.forEach(pl=>{ if(pl.motion){ const v=Math.sin(stageFrame*(pl.speed||0.02)+(pl.phase||0)); pl.x=pl.baseX+(pl.motion==='horizontal'?v*(pl.range||50):0); pl.y=pl.baseY+(pl.motion==='vertical'?v*(pl.range||35):0); }});
+        if(itemsEnabled && gameStarted && !isCountdown && --nextItemSpawn<=0 && battleItems.length<3){ const kinds=['bomb','banana','roulette']; battleItems.push({x:100+Math.random()*800,y:findGroundY(500)-80,kind:kinds[Math.floor(Math.random()*kinds.length)],life:900}); nextItemSpawn=360+Math.random()*240; }
+        let stageKey = activeStageKey;
+        // Distinctive stage backdrops and moving hazards/decorations.
+        if(stageKey==='splatoon'){ctx.fillStyle='#15243d';ctx.fillRect(0,0,canvas.width,canvas.height);for(let i=0;i<12;i++){ctx.fillStyle=i%2?'rgba(244,91,154,.25)':'rgba(39,216,208,.25)';ctx.beginPath();ctx.ellipse((i*97+stageFrame*1.4)%1050,100+(i%4)*95,38,65,Math.sin(stageFrame*.02+i),0,Math.PI*2);ctx.fill();}ctx.fillStyle='#27d8d0';ctx.fillRect(0,590,canvas.width,10);}
+        else if(stageKey==='mariokart'){ctx.fillStyle='#71c7ef';ctx.fillRect(0,0,canvas.width,canvas.height);ctx.fillStyle='#4a9b4a';ctx.fillRect(0,440,canvas.width,200);ctx.fillStyle='#f7d794';ctx.fillRect(0,495,canvas.width,16);ctx.fillStyle='#fff';for(let x=0;x<canvas.width;x+=70){ctx.fillRect(x,500,35,6);}ctx.fillStyle='#d35400';ctx.fillRect(40,120,120,16);ctx.fillRect(790,155,120,16);ctx.fillStyle='#f9ca24';ctx.font='bold 28px sans-serif';ctx.fillText('🏁',480,115);}
+        else if(stageKey==='zelda'){ctx.fillStyle='#101a22';ctx.fillRect(0,0,canvas.width,canvas.height);for(let y=35;y<500;y+=80){for(let x=20;x<1000;x+=100){ctx.fillStyle=((x+y)/10)%2?'#263746':'#1c2b38';ctx.fillRect(x,y,75,52);ctx.strokeStyle='#9b8555';ctx.strokeRect(x,y,75,52);}}ctx.fillStyle='#d6b76c';ctx.beginPath();ctx.arc(500,150,62,0,Math.PI*2);ctx.strokeStyle='#d6b76c';ctx.lineWidth=5;ctx.stroke();ctx.fillStyle='#d6b76c';ctx.font='bold 18px serif';ctx.fillText('古代神殿',455,155);}
+        currentPlatforms.forEach(plat => {
+            if (stageKey === 'minecraft') {
+                ctx.fillStyle = "#5ea832"; ctx.fillRect(plat.x, plat.y, plat.w, 10);
+                ctx.fillStyle = "#866043"; ctx.fillRect(plat.x, plat.y + 10, plat.w, plat.h - 10);
+                ctx.strokeStyle = "#4d331f"; ctx.lineWidth = 1;
+                for(let gx=plat.x; gx<plat.x+plat.w; gx+=16) ctx.strokeRect(gx, plat.y, 16, plat.h);
+            } else if (stageKey === 'volcano') {
+                ctx.fillStyle = "#2c1a1a"; ctx.fillRect(plat.x, plat.y, plat.w, plat.h);
+                ctx.fillStyle = "#e67e22"; ctx.fillRect(plat.x, plat.y, plat.w, 4);
+            } else if (stageKey === 'space') {
+                ctx.fillStyle = "#16222f"; ctx.fillRect(plat.x, plat.y, plat.w, plat.h);
+                ctx.fillStyle = "#00d2d3"; ctx.fillRect(plat.x, plat.y, plat.w, 3);
+            } else if (plat.theme === 'ink') { ctx.fillStyle='#243b53';ctx.fillRect(plat.x,plat.y,plat.w,plat.h);ctx.fillStyle='#27d8d0';ctx.fillRect(plat.x,plat.y,plat.w,5);ctx.fillStyle='#f45b9a';for(let z=plat.x+12;z<plat.x+plat.w;z+=36)ctx.fillRect(z,plat.y+plat.h-8,18,5);
+            } else if (plat.theme === 'kart') { ctx.fillStyle='#bdc3c7';ctx.fillRect(plat.x,plat.y,plat.w,plat.h);ctx.fillStyle='#e74c3c';ctx.fillRect(plat.x,plat.y,plat.w,6);ctx.fillStyle='#fff';for(let z=plat.x+10;z<plat.x+plat.w;z+=38)ctx.fillRect(z,plat.y+plat.h/2,18,5);
+            } else if (plat.theme === 'zelda') { ctx.fillStyle='#65523a';ctx.fillRect(plat.x,plat.y,plat.w,plat.h);ctx.strokeStyle='#d6b76c';ctx.lineWidth=2;ctx.strokeRect(plat.x+3,plat.y+3,plat.w-6,plat.h-6);ctx.fillStyle='#d6b76c';ctx.fillRect(plat.x,plat.y,plat.w,4);
+            } else if (stageKey === 'shrine') {
+                ctx.fillStyle = "#ca3e27"; ctx.fillRect(plat.x, plat.y, plat.w, plat.h);
+                ctx.fillStyle = "#f1c40f"; ctx.fillRect(plat.x, plat.y, plat.w, 4);
+            } else {
+                ctx.fillStyle = "#2c3e50"; ctx.fillRect(plat.x, plat.y, plat.w, plat.h);
+                ctx.fillStyle = "#34495e"; ctx.fillRect(plat.x, plat.y, plat.w, 4);
+            }
+        });
+
+        // Pickups: walk into an item to collect it; press J to use the carried item.
+        battleItems.forEach((it,idx)=>{it.life--; const colors={bomb:'#ff7043',banana:'#f1c40f',flip:'#7e57c2',roulette:'#00bcd4'};ctx.save();ctx.fillStyle=colors[it.kind];ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.beginPath();if(it.kind==='banana'){ctx.ellipse(it.x,it.y,13,6,-0.45,0,Math.PI*2);}else if(it.kind==='bomb'){ctx.arc(it.x,it.y,13,0,Math.PI*2);}else if(it.kind==='flip'){ctx.fillRect(it.x-11,it.y-11,22,22);}else{ctx.moveTo(it.x,it.y-13);ctx.lineTo(it.x+13,it.y);ctx.lineTo(it.x,it.y+13);ctx.lineTo(it.x-13,it.y);ctx.closePath();}ctx.fill();ctx.stroke();ctx.fillStyle='#111';ctx.font='bold 10px Arial';ctx.textAlign='center';ctx.fillText(({bomb:'B',banana:'🍌',flip:'↕',roulette:'?'}[it.kind]),it.x,it.y+4);ctx.restore();if(it.life<=0)battleItems.splice(idx,1);});
+        players.forEach(p=>{if(p.stocks<=0)return; for(let bi=battleItems.length-1;bi>=0;bi--){const it=battleItems[bi];if(it.kind==='bananaTrap'){if(p.id!==it.ownerId&&Math.hypot(p.x-it.x,p.y-it.y)<p.r+12){p.itemStopTimer=60;battleItems.splice(bi,1);spawnParticles(p.x,p.y,'#f1c40f',10,4);}continue;} if(!p.heldItem&&Math.hypot(p.x-it.x,p.y-it.y)<p.r+17){p.heldItem=it.kind;battleItems.splice(bi,1);spawnParticles(p.x,p.y,'#f1c40f',8,3);break;}}});
+        if(stageInvertedTimer>0){ctx.save();ctx.fillStyle='rgba(126,87,194,0.13)';ctx.fillRect(0,0,canvas.width,canvas.height);ctx.restore();}
+        if(itemsEnabled){ctx.save();ctx.fillStyle='rgba(0,0,0,.72)';ctx.fillRect(10,10,270,48);ctx.fillStyle='#fff';ctx.font='bold 13px sans-serif';ctx.textAlign='left';ctx.fillText('アイテム：拾うと頭上に表示 / Jで使用',20,29);ctx.font='12px sans-serif';ctx.fillText('💣爆発　🍌停止トラップ　↕画面反転　🎲停止ルーレット',20,47);ctx.restore();}
+        if (isCountdown) {
+            let elapsed = Date.now() - countdownStart;
+            let left = 3 - Math.floor(elapsed / 1000);
+            
+            players.forEach(p => p.draw(ctx));
+            drawGameUI();
+            
+            ctx.fillStyle = "rgba(0, 0, 0, 0.4)";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            ctx.fillStyle = "#f1c40f";
+            ctx.font = "bold 140px 'Arial Black', sans-serif";
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.shadowColor = "black";
+            ctx.shadowBlur = 15;
+            
+            if (left > 0) {
+                ctx.fillText(left.toString(), canvas.width/2, canvas.height/2);
+            } else if (left === 0) {
+                ctx.fillStyle = "#e74c3c";
+                ctx.fillText("GO!", canvas.width/2, canvas.height/2);
+            } else {
+                isCountdown = false;
+                startBattotaiBGM();
+            }
+            
+            ctx.shadowBlur = 0;
+            ctx.textAlign = "start";
+            ctx.textBaseline = "alphabetic";
+            
+            if (isCountdown) {
+                requestAnimationFrame(gameLoop);
+                return;
+            }
+        }
+
+        for (let i = projectiles.length - 1; i >= 0; i--) {
+            let proj = projectiles[i]; 
+            
+            if (proj.pType === 'nuke_throw') {
+                proj.vy += 0.35; 
+                
+                let nearest = null; let nd = 300;
+                players.forEach(t => {
+                    if (t !== proj.owner && t.stocks > 0) {
+                        let d = Math.hypot(t.x - proj.x, t.y - proj.y);
+                        if (d < nd) { nd = d; nearest = t; }
+                    }
+                });
+                if (nearest) {
+                    const strongHoming = proj.owner && ['usa','mongol_empire','soviet'].includes(proj.owner.type);
+                    const steer = strongHoming ? 0.42 : 0.15;
+                    const desiredX = nearest.x - proj.x;
+                    const desiredY = nearest.y - proj.y;
+                    proj.vx += Math.max(-steer, Math.min(steer, desiredX * (strongHoming ? 0.0032 : 0.0012)));
+                    if (strongHoming) proj.vy += Math.max(-0.28, Math.min(0.28, desiredY * 0.0022));
+                }
+            }
+
+            proj.x += proj.vx; proj.y += proj.vy;
+            
+            let hit = false; let hitGround = false;
+
+            if (proj.pType === 'divine_cross') {
+                proj.timer--;
+                ctx.save(); ctx.translate(proj.x,proj.y); ctx.shadowColor='#fff';ctx.shadowBlur=34;ctx.fillStyle='#fffdf0';ctx.strokeStyle='#e6bd45';ctx.lineWidth=8;
+                ctx.fillRect(-11,-43,22,86);ctx.fillRect(-37,-11,74,22);ctx.strokeRect(-11,-43,22,86);ctx.strokeRect(-37,-11,74,22);ctx.restore();
+                if (proj.timer <= 0) { hit=true; }
+                if (hit) projectiles.splice(i,1); continue;
+            }
+            if (proj.pType === 'vatican_lightning') {
+                proj.timer--;
+                ctx.save();ctx.strokeStyle='#fff8b0';ctx.shadowColor='#fff2a0';ctx.shadowBlur=42;ctx.lineCap='round';
+                const bottom=Math.min(canvas.height-80,proj.y+900), wob=Math.sin(proj.timer*1.7)*10;
+                ctx.lineWidth=42;ctx.beginPath();ctx.moveTo(proj.x,proj.y);ctx.lineTo(proj.x+wob-18,proj.y+bottom*.28);ctx.lineTo(proj.x-8,proj.y+bottom*.53);ctx.lineTo(proj.x+wob+16,bottom);ctx.stroke();
+                ctx.strokeStyle='#fff';ctx.lineWidth=16;ctx.beginPath();ctx.moveTo(proj.x,proj.y);ctx.lineTo(proj.x+wob-18,proj.y+bottom*.28);ctx.lineTo(proj.x-8,proj.y+bottom*.53);ctx.lineTo(proj.x+wob+16,bottom);ctx.stroke();
+                ctx.lineWidth=12;ctx.beginPath();ctx.moveTo(proj.x-8,proj.y+bottom*.53);ctx.lineTo(proj.x-100,proj.y+bottom*.66);ctx.moveTo(proj.x+4,proj.y+bottom*.62);ctx.lineTo(proj.x+120,proj.y+bottom*.78);ctx.stroke();ctx.restore();
+                if(proj.timer<=0) hit=true;
+                if(hit) projectiles.splice(i,1); continue;
+            }
+
+            if (proj.pType === 'history_shot') {
+                proj.timer--; proj.age=(proj.age||0)+1;
+                if(proj.kind==='canada' && proj.age===42) proj.vx*=-1;
+                if(proj.kind==='canada') {
+                    const baseVY = proj.baseVY == null ? -1.5 : proj.baseVY;
+                    let nearest = null, nearestD = 520;
+                    players.forEach(t => { if(t===proj.owner || t.stocks<=0 || (gameMode==='team' && t.team===proj.owner.team)) return; const d=Math.hypot(t.x-proj.x,t.y-proj.y); if(d<nearestD){nearestD=d;nearest=t;} });
+                    const homingY = nearest ? Math.max(-1.15,Math.min(1.15,(nearest.y-proj.y)*0.0022)) : 0;
+                    // 追尾は控えめにしつつ、サイン波で左右にギザギザ揺れる。
+                    proj.vy = baseVY + Math.sin(proj.age*0.34)*2.0 + homingY;
+                }
+                if(proj.kind==='india') { proj.rotation=(proj.rotation||0)+0.28; }
+                if(proj.kind==='poland') proj.vy+=0.025;
+                proj.x+=proj.vx; proj.y+=proj.vy;
+                if(proj.x<=proj.r||proj.x>=canvas.width-proj.r){proj.vx*=-1;proj.x=Math.max(proj.r,Math.min(canvas.width-proj.r,proj.x));}
+                if(proj.y<=proj.r||proj.y>=canvas.height-80-proj.r){proj.vy*=-1;proj.y=Math.max(proj.r,Math.min(canvas.height-80-proj.r,proj.y));}
+                ctx.save();ctx.translate(proj.x,proj.y);ctx.rotate(proj.rotation||Math.atan2(proj.vy,proj.vx));
+                ctx.fillStyle=proj.color||'#fff';ctx.strokeStyle='#202020';ctx.lineWidth=2;
+                if(proj.kind==='canada') {ctx.beginPath();ctx.moveTo(0,-proj.r);ctx.lineTo(5,-5);ctx.lineTo(13,-8);ctx.lineTo(8,0);ctx.lineTo(12,8);ctx.lineTo(3,6);ctx.lineTo(0,proj.r);ctx.lineTo(-3,6);ctx.lineTo(-12,8);ctx.lineTo(-8,0);ctx.lineTo(-13,-8);ctx.lineTo(-5,-5);ctx.closePath();ctx.fill();ctx.stroke();}
+                else {ctx.beginPath();ctx.arc(0,0,proj.r,0,Math.PI*2);ctx.fill();ctx.stroke();if(proj.mark){ctx.fillStyle=proj.kind==='ah'?'#202020':'#fff';ctx.font='bold 11px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(proj.mark,0,1);}}
+                ctx.restore();
+                const repeatHit = ['canada','manchu','ah','poland'].includes(proj.kind);
+                const touchingNow = [];
+                players.forEach(t=>{
+                    if(t===proj.owner||t.stocks<=0)return;
+                    if(gameMode==='team'&&t.team===proj.owner.team)return;
+                    const touching = Math.hypot(t.x-proj.x,t.y-proj.y)<t.r+proj.r;
+                    if (!touching) return;
+                    if (repeatHit) {
+                        touchingNow.push(t.id);
+                        if ((proj.touchingIds||[]).includes(t.id) || t.invincible>0) return;
+                    } else {
+                        if (t.invincible>0 || proj.hitIds.includes(t.id)) return;
+                        proj.hitIds.push(t.id);
+                    }
+                    applyDamage(t,proj.owner,proj.damage||8,12,0.12,false,proj.vx>=0?1:-1);
+                    if(proj.kind==='india')t.slowTimer=Math.max(t.slowTimer||0,75);
+                    spawnParticles(proj.x,proj.y,proj.color||'#fff',8,3);
+                });
+                if (repeatHit) proj.touchingIds = touchingNow;
+                if(proj.timer<=0){projectiles.splice(i,1);}continue;
+            }
+
+            if (proj.pType === 'soccer_ball') {
+                proj.timer--;
+                // 重力・摩擦なし。画面内の四辺で反射し、5秒間走り続ける。
+                if (proj.x <= proj.r || proj.x >= canvas.width-proj.r) { proj.vx *= -1; proj.x = Math.max(proj.r,Math.min(canvas.width-proj.r,proj.x)); }
+                if (proj.y <= proj.r || proj.y >= canvas.height-80-proj.r) { proj.vy *= -1; proj.y = Math.max(proj.r,Math.min(canvas.height-80-proj.r,proj.y)); }
+                ctx.save(); ctx.translate(proj.x,proj.y); ctx.rotate(Math.atan2(proj.vy,proj.vx));
+                ctx.fillStyle='#fff'; ctx.strokeStyle='#17202a'; ctx.lineWidth=2; ctx.beginPath(); ctx.arc(0,0,proj.r,0,Math.PI*2); ctx.fill(); ctx.stroke();
+                ctx.fillStyle='#17202a'; ctx.beginPath();
+                for(let a=0;a<5;a++){const ang=a*Math.PI*2/5;const x=Math.cos(ang)*5,y=Math.sin(ang)*5;if(a===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);}ctx.closePath();ctx.fill();
+                ctx.restore();
+                players.forEach(t=>{
+                    if(t===proj.owner||t.stocks<=0||t.invincible>0||proj.hitIds.includes(t.id))return;
+                    if(gameMode==='team'&&t.team===proj.owner.team)return;
+                    if(Math.hypot(t.x-proj.x,t.y-proj.y)<t.r+proj.r){
+                        proj.hitIds.push(t.id);
+                        applyDamage(t,proj.owner,proj.damage||12,13,0.12,false,proj.vx>=0?1:-1);
+                        spawnParticles(proj.x,proj.y,'#ffffff',18,6);
+                    }
+                });
+                if(proj.timer<=0)hit=true;
+                if(hit)projectiles.splice(i,1);
+                continue;
+            }
+
+            if (proj.pType === 'five_dollar') {
+                proj.timer--;
+                ctx.save();
+                ctx.translate(proj.x, proj.y);
+                ctx.rotate(Math.atan2(proj.vy, proj.vx));
+                ctx.fillStyle = '#7fbf7f';
+                ctx.strokeStyle = '#1f5f1f';
+                ctx.lineWidth = 1;
+                ctx.fillRect(-13, -8, 26, 16);
+                ctx.strokeRect(-13, -8, 26, 16);
+                ctx.fillStyle = '#174d17';
+                ctx.font = 'bold 8px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText('$5', 0, 3);
+                ctx.restore();
+
+                players.forEach(t => {
+                    if (t === proj.owner || t.invincible > 0 || t.stocks <= 0) return;
+                    if (gameMode === 'team' && t.team === proj.owner.team) return;
+                    if (Math.hypot(t.x - proj.x, t.y - proj.y) < t.r + (proj.r || 7)) {
+                        applyDamage(t, proj.owner, 4, 4.5, 0.02, false, proj.vx >= 0 ? 1 : -1);
+                        hit = true;
+                    }
+                });
+                if (proj.timer <= 0 || proj.x < -60 || proj.x > canvas.width + 60) hit = true;
+                continue;
+            }
+
+            if (proj.pType === 'drone') {
+                proj.timer--;
+                proj.vx = proj.vx >= 0 ? Math.abs(proj.vx) : -Math.abs(proj.vx);
+                proj.x += proj.vx;
+                proj.y += Math.sin((300 - proj.timer) * 0.06) * 0.7;
+
+                if (proj.x <= 35 || proj.x >= canvas.width - 35) {
+                    proj.vx *= -1;
+                    proj.x = Math.max(35, Math.min(canvas.width-35, proj.x));
+                }
+
+                // 1秒に1発程度。5秒間で最大5発なので強くなりすぎない。
+                if (proj.timer % 60 === 0) {
+                    const targets = players.filter(t => t !== proj.owner && t.stocks > 0 && (gameMode === 'free' || t.team !== proj.owner.team));
+                    const target = targets.length ? targets[Math.floor(Math.random() * targets.length)] : null;
+                    const dx = target ? target.x - proj.x : proj.vx * 30;
+                    const dy = target ? target.y - proj.y : 0;
+                    const len = Math.hypot(dx,dy) || 1;
+                    projectiles.push({x:proj.x, y:proj.y, vx:dx/len*8, vy:dy/len*8, owner:proj.owner, pType:'drone_bullet', timer:75, r:5});
+                    playHeavySFX('attack');
+                }
+
+                ctx.save();
+                ctx.translate(proj.x, proj.y);
+                ctx.rotate(Math.atan2(proj.vy || 0, proj.vx));
+                ctx.fillStyle = '#555';
+                ctx.fillRect(-18,-7,36,14);
+                ctx.fillStyle = '#222';
+                ctx.fillRect(-8,-14,16,7);
+                ctx.fillStyle = '#aaa';
+                ctx.fillRect(-5,7,10,4);
+                ctx.restore();
+
+                if (proj.timer <= 0) hit = true;
+                if (hit) projectiles.splice(i,1);
+                continue;
+            }
+
+            if (proj.pType === 'drone_bullet') {
+                proj.timer--; proj.x += proj.vx; proj.y += proj.vy;
+                ctx.save();
+                ctx.fillStyle='#f1c40f'; ctx.shadowColor='#fff'; ctx.shadowBlur=8;
+                ctx.beginPath(); ctx.arc(proj.x,proj.y,proj.r,0,Math.PI*2); ctx.fill();
+                ctx.restore();
+                players.forEach(t => {
+                    if (t === proj.owner || t.invincible > 0 || t.stocks <= 0) return;
+                    if (gameMode === 'team' && t.team === proj.owner.team) return;
+                    if (Math.hypot(t.x-proj.x,t.y-proj.y) < t.r + proj.r) {
+                        applyDamage(t, proj.owner, 4, 5, 0.04, false, proj.vx >= 0 ? 1 : -1);
+                        hit = true;
+                    }
+                });
+                if (proj.timer <= 0 || proj.x < -30 || proj.x > canvas.width+30 || proj.y < -30 || proj.y > canvas.height+30) hit = true;
+                if (hit) projectiles.splice(i,1);
+                continue;
+            }
+
+            if (proj.pType === 'vodka_bottle') {
+                proj.timer--; proj.vy += .25;
+                ctx.save();ctx.translate(proj.x,proj.y);ctx.rotate(Math.atan2(proj.vy,proj.vx));ctx.fillStyle='#6b4b2a';ctx.strokeStyle='#111';ctx.fillRect(-6,-13,12,26);ctx.fillStyle='#d7b56d';ctx.fillRect(-5,-17,10,5);ctx.restore();
+                let broke=proj.timer<=0; currentPlatforms.forEach(pl=>{if(proj.y>=pl.y-8&&proj.y<=pl.y+15&&proj.x>=pl.x&&proj.x<=pl.x+pl.w)broke=true;});
+                let struckEnemy=false; players.forEach(t=>{if(t===proj.owner||t.stocks<=0||t.invincible>0||(gameMode==='team'&&t.team===proj.owner.team))return;if(Math.hypot(t.x-proj.x,t.y-proj.y)<t.r+proj.r){struckEnemy=true;broke=true;}});
+                if(broke){spawnParticles(proj.x,proj.y,'rgba(220,230,240,.75)',45,5);projectiles.push({x:proj.x,y:proj.y,vx:0,vy:0,owner:proj.owner,pType:'vodka_mist',timer:240,r:105});playHeavySFX('ultimate');hit=true;}
+                if(hit)projectiles.splice(i,1); continue;
+            }
+            if (proj.pType === 'vodka_mist') {
+                proj.timer--; ctx.save();ctx.globalAlpha=Math.min(.48,proj.timer/240*.48);ctx.fillStyle='#dfe6e9';ctx.beginPath();ctx.arc(proj.x,proj.y,proj.r,0,Math.PI*2);ctx.fill();ctx.restore();
+                players.forEach(t=>{if(t===proj.owner||t.stocks<=0||t.invincible>0)return;if(gameMode==='team'&&t.team===proj.owner.team)return;if(Math.hypot(t.x-proj.x,t.y-proj.y)<proj.r+t.r){t.slowTimer=Math.max(t.slowTimer||0,240);t.russiaDotTimer=480;t.russiaDotTick=t.russiaDotTick>0?t.russiaDotTick:60;t.russiaDotOwner=proj.owner;}});
+                if(proj.timer<=0)hit=true;if(hit)projectiles.splice(i,1);continue;
+            }
+
+            if (proj.pType === 'pooh_bear') {
+                proj.timer--;
+                if (proj.x < proj.r || proj.x > canvas.width - proj.r) proj.vx *= -1;
+                if (proj.y < proj.r || proj.y > canvas.height - 80 - proj.r) proj.vy *= -1;
+                
+                ctx.save(); ctx.translate(proj.x, proj.y);
+                ctx.fillStyle = "#f1c40f"; ctx.strokeStyle = "#000"; ctx.lineWidth = 2;
+                ctx.beginPath(); ctx.arc(-proj.r*0.7, -proj.r*0.7, proj.r*0.3, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+                ctx.beginPath(); ctx.arc(proj.r*0.7, -proj.r*0.7, proj.r*0.3, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+                ctx.beginPath(); ctx.arc(0, 0, proj.r, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+                ctx.save(); ctx.beginPath(); ctx.arc(0, 0, proj.r, 0, Math.PI, false); ctx.clip();
+                ctx.fillStyle = "#e74c3c"; ctx.fillRect(-proj.r, 0, proj.r*2, proj.r); ctx.restore();
+                ctx.beginPath(); ctx.arc(0, 0, proj.r, 0, Math.PI*2); ctx.stroke();
+                ctx.fillStyle = "#2c3e50";
+                ctx.beginPath(); ctx.arc(-proj.r*0.25, -proj.r*0.15, 5, 0, Math.PI*2); ctx.fill();
+                ctx.beginPath(); ctx.arc(proj.r*0.25, -proj.r*0.15, 5, 0, Math.PI*2); ctx.fill();
+                ctx.beginPath(); ctx.arc(0, proj.r*0.1, 7, 0, Math.PI*2); ctx.fill();
+                ctx.restore();
+
+                players.forEach(t => {
+                    if (t === proj.owner || t.invincible > 0 || t.stocks <= 0) return;
+                    if (gameMode === 'team' && t.team === proj.owner.team) return;
+                    let d = Math.sqrt((t.x - proj.x)**2 + (t.y - proj.y)**2);
+                    if (d < t.r + proj.r) {
+                        t.isHit = 6; t.vx = 0; t.vy = 0; 
+                        if (proj.timer % 6 === 0) applyDamage(t, proj.owner, 1.3, 0, 0, false, 0);
+                    }
+                });
+                if (proj.timer <= 0) hit = true;
+                continue;
+            }
+            else if (proj.pType === 'drone') {
+                proj.timer--;
+                if (proj.x < 40 || proj.x > canvas.width - 40) proj.vx *= -1; 
+                ctx.save(); ctx.translate(proj.x, proj.y);
+                ctx.fillStyle = "#718093"; ctx.fillRect(-30, -2, 60, 4); 
+                ctx.fillStyle = "#2f3640"; ctx.fillRect(-14, -6, 28, 12); 
+                ctx.fillStyle = (proj.timer % 16 < 8) ? "#e84118" : "#2f3640"; 
+                ctx.beginPath(); ctx.arc(0, 4, 3, 0, Math.PI*2); ctx.fill(); 
+                ctx.restore();
+
+                if (proj.timer % 12 === 0) {
+                    projectiles.push({ x: proj.x, y: proj.y + 8, vx: proj.vx * 0.1, vy: 6, owner: proj.owner, pType: 'drone_bomb' });
+                }
+                if (proj.timer <= 0) hit = true;
+                continue;
+            }
+            else if (proj.pType === 'drone_bomb') {
+                ctx.fillStyle = "#ff5252"; ctx.beginPath(); ctx.arc(proj.x, proj.y, 6, 0, Math.PI*2); ctx.fill();
+                currentPlatforms.forEach(plat => {
+                    if (proj.y >= plat.y && proj.y <= plat.y + 12 && proj.x >= plat.x && proj.x <= plat.x + plat.w) {
+                        hit = true; spawnParticles(proj.x, proj.y, "#ff793f", 6, 3);
+                    }
+                });
+                players.forEach(t => {
+                    if (t === proj.owner || t.invincible > 0 || t.stocks <= 0) return;
+                    if (gameMode === 'team' && t.team === proj.owner.team) return;
+                    let d = Math.sqrt((t.x - proj.x)**2 + (t.y - proj.y)**2);
+                    if (d < t.r + 6) {
+                        applyDamage(t, proj.owner, 7, 7, 0.12, false, proj.vx > 0 ? 1 : -1);
+                        hit = true; spawnParticles(proj.x, proj.y, "#ff793f", 8, 4);
+                    }
+                });
+                if (proj.y > 640) hit = true;
+                if (hit) projectiles.splice(i, 1);
+                continue;
+            }
+
+            if (proj.pType === 'nuke_throw' || proj.pType === 'nuke_drop') ctx.fillStyle = '#e74c3c';
+            else if (proj.pType === 'tank_cannon') ctx.fillStyle = '#f1c40f';
+            else ctx.fillStyle = '#2ecc71';
+            
+            ctx.beginPath(); 
+            ctx.arc(proj.x, proj.y, (proj.pType === 'nuke_drop' || proj.pType === 'nuke_throw') ? 14 : 7, 0, Math.PI*2); 
+            ctx.fill();
+
+            if (proj.pType === 'nuke_throw') {
+                currentPlatforms.forEach(plat => {
+                    if (proj.vy >= 0 && proj.x >= plat.x && proj.x <= plat.x + plat.w) {
+                        if (proj.y >= plat.y && proj.y <= plat.y + 15) { hitGround = true; }
+                    }
+                });
+            }
+
+            players.forEach(t => {
+                if (t === proj.owner || t.invincible > 0 || t.stocks <= 0) return;
+                if (gameMode === 'team' && t.team === proj.owner.team) return;
+                let d = Math.sqrt((t.x - proj.x)**2 + (t.y - proj.y)**2);
+                if (d < t.r + ((proj.pType === 'nuke_drop') ? (10*2/3) : 10)) {
+                    if (proj.pType === 'nuke_drop' || proj.pType === 'nuke_throw') { hit = true; } 
+                    else {
+                        applyDamage(t, proj.owner, proj.pType=='tank_cannon'?16:6, proj.pType=='tank_cannon'?12:5, 0.15, false, proj.vx > 0 ? 1 : -1);
+                        hit = true;
+                    }
+                }
+            });
+
+            if ((proj.pType === 'nuke_drop' || proj.pType === 'nuke_throw') && (hit || hitGround)) {
+                spawnParticles(proj.x, proj.y, '#e67e22', 50, 12);
+                for (let deg = 0; deg < 360; deg += 15) {
+                    let rad = deg * Math.PI / 180;
+                    particles.push({
+                        x: proj.x, y: proj.y, vx: Math.cos(rad) * 6, vy: Math.sin(rad) * 6,
+                        radius: 14, color: 'rgba(231, 76, 60, 0.65)', alpha: 1, decay: 0.02
+                    });
+                }
+                players.forEach(v => {
+                    if (v !== proj.owner && v.stocks > 0 && (gameMode === 'free' || v.team !== proj.owner.team)) {
+                        let distNuke = Math.sqrt((v.x - proj.x)**2 + (v.y - proj.y)**2);
+                        if (distNuke < 220) { applyDamage(v, proj.owner, 45, 24, 0.42, false, v.x > proj.x ? 1 : -1); }
+                    }
+                });
+                hit = true;
+            }
+
+            if (proj.pType === 'poison') { proj.timer--; if(proj.timer<=0) hit = true; }
+            if (proj.y > 640 || proj.x < -50 || proj.x > 1050) hit = true;
+            if (hit || hitGround) projectiles.splice(i, 1);
+        }
+
+        for (let i = particles.length - 1; i >= 0; i--) {
+            let pt = particles[i]; pt.x += pt.vx; pt.y += pt.vy; pt.alpha -= pt.decay;
+            if (pt.alpha <= 0) { particles.splice(i, 1); continue; }
+            ctx.save(); ctx.globalAlpha = pt.alpha; ctx.fillStyle = pt.color;
+            ctx.beginPath(); ctx.arc(pt.x, pt.y, pt.radius, 0, Math.PI*2); ctx.fill(); ctx.restore();
+        }
+
+        players.forEach(p => { if (p.stocks > 0 || p.suicidePending > 0) { if (p.isCPU) runCPUAI(p); p.update(); p.draw(ctx); } });
+        updateKangarooAssist();
+
+        drawOffscreenIndicators();
+        drawGameUI();
+
+        ctx.restore();
+        let activeTeams = new Set(); let lastSurvivor = null;
+        players.forEach(p => { if (p.stocks > 0) { activeTeams.add(p.team); lastSurvivor = p; } });
+        if (!(onlineBattle && onlineRole === 'guest') && activeTeams.size <= 1) {
+            let winText = "DRAW";
+            if (lastSurvivor) winText = gameMode === 'team' ? `チーム ${lastSurvivor.team}` : `${lastSurvivor.charData.name}(P${lastSurvivor.id})`;
+            endGame(winText); return;
+        }
+        requestAnimationFrame(gameLoop);
+    }
+
+    function drawGameUI() {
+        let boxWidth = canvas.width / players.length;
+        ctx.fillStyle = "rgba(5, 12, 16, 0.88)"; ctx.fillRect(0, canvas.height - 80, canvas.width, 80);
+        
+        players.forEach((p, idx) => {
+            let bx = idx * boxWidth;
+            ctx.strokeStyle = "#37474f"; ctx.lineWidth = 1; ctx.strokeRect(bx, canvas.height - 80, boxWidth, 80);
+
+            if (p.stocks <= 0 && p.suicidePending === 0) {
+                ctx.fillStyle = "#666"; ctx.font = "bold 16px Arial"; ctx.fillText(`${p.charData.name} 撃墜`, bx + 15, canvas.height - 42); return;
+            }
+
+            ctx.fillStyle = p.id === 1 ? "#ff7675" : "#fff"; ctx.font = "bold 13px Arial";
+            ctx.fillText(`P${p.id}: ${p.charData.name}`, bx + 10, canvas.height - 58);
+
+            let stockStr = "🔴".repeat(Math.max(0, p.stocks)); ctx.font = "12px Arial";
+            ctx.fillText(stockStr, bx + 10, canvas.height - 38);
+
+            ctx.fillStyle = p.damage > 150 ? "#ff2e2e" : (p.damage > 70 ? "#ff9f43" : "#fff"); ctx.font = "bold 21px Arial";
+            ctx.fillText(`${Math.floor(p.damage)}%`, bx + boxWidth - 85, canvas.height - 46);
+
+            ctx.fillStyle = "rgba(0, 0, 0, 0.6)"; ctx.fillRect(bx + 10, canvas.height - 24, boxWidth - 20, 12);
+            ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 1.5; ctx.strokeRect(bx + 10, canvas.height - 24, boxWidth - 20, 12);
+            
+            if (p.ultReadyCooldown === 0 && p.suicidePending === 0) {
+                ctx.fillStyle = Math.floor(Date.now() / 90) % 2 === 0 ? "#f1c40f" : "#ffffff";
+                ctx.fillRect(bx + 11, canvas.height - 23, boxWidth - 22, 10);
+                ctx.fillStyle = "#000000"; ctx.font = "bold 9px Arial";
+                ctx.fillText("★ ULT READY ★", bx + (boxWidth / 2) - 44, canvas.height - 15);
+            } else {
+                ctx.fillStyle = "#3498db";
+                let wPct = (1200 - p.ultReadyCooldown) / 1200;
+                ctx.fillRect(bx + 11, canvas.height - 23, (boxWidth - 22) * wPct, 10);
+            }
+        });
+    }
+</script>
+
+<script>
+// Chromebook向け：PeerJSの無料シグナリングを使い、ブラウザ同士を直接接続します。
+let onlinePeer = null, onlineConn = null, onlineRole = null, onlinePeerReady = false, onlineBattle = false;
+let onlineRemoteKeys = {a:false,d:false,w:false,s:false,j:false,k:false,l:false,i:false};
+let onlineLastInputSent = 0, onlineLastSnapshotSent = 0;
+let onlineGuestCharacter='japan';
+const ONLINE_KEYS = ['a','d','w','s','j','k','l','i'];
+function openOnlineMenu(){
+ document.getElementById('main-menu-container').style.display='none';
+ document.getElementById('setup-menu').style.display='none';
+ document.getElementById('online-menu').style.display='flex';
+ onlinePopulateCharacterPickers();
+ document.getElementById('start-overlay').style.justifyContent='center';
+}
+function onlineStatus(t){const el=document.getElementById('online-status');if(el)el.textContent=t;}
+function closeOnlineMenu(){
+ try{if(onlineConn)onlineConn.close();}catch(e){}
+ try{if(onlinePeer)onlinePeer.destroy();}catch(e){}
+ onlineConn=null;onlinePeer=null;onlinePeerReady=false;onlineBattle=false;onlineRole=null;
+ document.getElementById('online-menu').style.display='none';
+ document.getElementById('main-menu-container').style.display='flex';
+ document.getElementById('start-overlay').style.justifyContent='center';
+ document.getElementById('online-start-btn').style.display='none';
+ onlineStatus('部屋を作るか、友達から受け取ったコードを入力してください。');
+}
+function onlineSend(data){try{if(onlineConn&&onlineConn.open)onlineConn.send(data);}catch(e){}}
+function onlineCode(){return Math.random().toString(36).slice(2,8).toUpperCase().replace(/[^A-Z0-9]/g,'X').padEnd(6,'X').slice(0,6);}
+function onlinePopulateCharacterPickers(){
+ const mine=document.getElementById('online-my-char'), cpu=document.getElementById('online-cpu-char');
+ if(!mine||!cpu||typeof CHARACTERS==='undefined')return;
+ const entries=Object.entries(CHARACTERS);
+ [mine,cpu].forEach(sel=>{if(sel.options.length)return;entries.forEach(([key,val])=>{const o=document.createElement('option');o.value=key;o.textContent=val.name||key;sel.appendChild(o);});});
+ const local=document.getElementById('char-select-1'); if(local&&local.value&&!mine.value)mine.value=local.value;
+ if(!mine.dataset.bound){mine.addEventListener('change',()=>{if(onlineRole==='guest')onlineSend({type:'char-select',char:mine.value});});mine.dataset.bound='1';}
+ const cpuWrap=document.getElementById('online-cpu-char-wrap'); if(cpuWrap)cpuWrap.style.display=onlineRole==='host'?'inline-block':'none';
+}
+function onlineCreateRoom(){
+ if(typeof Peer==='undefined'){onlineStatus('通信ライブラリを読み込めません。インターネット接続を確認してページを再読み込みしてください。');return;}
+ if(onlinePeer)onlinePeer.destroy();
+ const requestedCode=document.getElementById('online-room-code').value.trim().toUpperCase(); const code=/^[A-Z0-9]{6}$/.test(requestedCode)?requestedCode:onlineCode(); onlineRole='host'; onlinePeerReady=false; onlinePopulateCharacterPickers();
+ document.getElementById('online-room-code').value=code;
+ onlineStatus('部屋を作成中…');
+ try{onlinePeer=new Peer('pbb-'+code.toLowerCase());}catch(e){onlineStatus('部屋を作れませんでした。もう一度お試しください。');return;}
+ onlinePeer.on('open',()=>onlineStatus('部屋を作りました！\n部屋コード：'+code+'\nこのコードを友達に送って、参加するまでこの画面を開いたままにしてください。'));
+ onlinePeer.on('connection',conn=>{
+   if(onlineConn){conn.close();return;}
+   onlineConn=conn; onlineSetupConnection();
+ });
+ onlinePeer.on('error',err=>{onlineStatus('通信エラー：'+(err.type==='unavailable-id'?'部屋コードが重複しました。「部屋を作る」をもう一度押してください。':err.type==='network'?'通信サーバーに接続できません。時間をおいて再試行してください。':err.message||err.type));});
+}
+function onlineJoinRoom(){
+ window.__pbbJoinStartedAt=Date.now();
+ if(window.__pbbJoinWaitTimer)clearInterval(window.__pbbJoinWaitTimer);
+ window.__pbbJoinWaitTimer=setInterval(()=>{if(onlinePeerReady){clearInterval(window.__pbbJoinWaitTimer);return;}const sec=Math.floor((Date.now()-(window.__pbbJoinStartedAt||Date.now()))/1000);onlineStatus('部屋に接続中… 経過 '+sec+'秒 / 推定待機時間：通常5〜15秒（混雑時は延長することがあります）');},1000);
+ if(typeof Peer==='undefined'){onlineStatus('通信ライブラリを読み込めません。インターネット接続を確認してページを再読み込みしてください。');return;}
+ const code=document.getElementById('online-room-code').value.trim().toLowerCase();
+ if(!/^[a-z0-9]{6}$/.test(code)){onlineStatus('部屋コードを英数字6文字で入力してください。');return;}
+ onlinePopulateCharacterPickers();
+ if(onlinePeer)onlinePeer.destroy(); onlineRole='guest';onlinePeerReady=false;onlineStatus('部屋に接続中…');
+ try{onlinePeer=new Peer();}catch(e){onlineStatus('通信を開始できませんでした。');return;}
+ onlinePeer.on('open',()=>{onlineConn=onlinePeer.connect('pbb-'+code,{reliable:true});onlineSetupConnection();});
+ onlinePeer.on('error',err=>onlineStatus('通信エラー：'+(err.type==='peer-unavailable'?'その部屋が見つかりません。コードを確認してね。':err.message||err.type)));
+}
+function onlineSetupConnection(){
+ if(!onlineConn)return;
+ onlineConn.on('open',()=>{
+   onlinePeerReady=true;
+   if(window.__pbbJoinWaitTimer)clearInterval(window.__pbbJoinWaitTimer);
+   if(onlineRole==='host'){
+     document.getElementById('online-start-btn').style.display='block';
+     onlineStatus('友達が接続しました！\n「対戦を開始」を押してください。');
+   }else{
+     onlineStatus('部屋に接続しました！\nホストが対戦を開始するまで待ってください。');
+     onlineSend({type:'ready',char:document.getElementById('online-my-char')?.value||'japan'});
+   }
+ });
+ onlineConn.on('data',m=>{
+   if(!m||typeof m!=='object')return;
+   if(m.type==='char-select'&&onlineRole==='host'&&m.char){onlineGuestCharacter=m.char;}
+   if(m.type==='ready'&&onlineRole==='host'){onlinePeerReady=true;onlineGuestCharacter=m.char||onlineGuestCharacter||'japan';document.getElementById('online-start-btn').style.display='block';onlineStatus('友達が接続しました！\n両者がキャラを選んだら「対戦を開始」を押してください。');}
+   if(m.type==='input'&&onlineRole==='host'&&m.keys){onlineRemoteKeys=Object.assign({},onlineRemoteKeys,m.keys);}
+   if(m.type==='cheat-toggle'&&typeof m.enabled==='boolean'){cheatMode=m.enabled;if(onlineRole==='host')onlineSend({type:'cheat-toggle',enabled:cheatMode});}
+   if(m.type==='start-battle'&&onlineRole==='guest')onlineLaunchBattle(m.settings,false);
+   if(m.type==='snapshot'&&onlineRole==='guest')onlineApplySnapshot(m.state);
+   if(m.type==='kangaroo'&&onlineRole==='guest')kangarooAssist=m.assist||null;
+   if(m.type==='end-game'&&onlineRole==='guest'){if(gameStarted)endGame(m.winner||'DRAW');else{gameStarted=false;document.getElementById('online-menu').style.display='flex';document.getElementById('setup-menu').style.display='none';document.getElementById('main-menu-container').style.display='none';document.getElementById('start-overlay').style.display='flex';document.getElementById('start-overlay').style.justifyContent='center';document.getElementById('result-text').innerText=(m.winner||'DRAW')+' の勝利！';document.getElementById('result-text').style.display='block';onlineStatus('対戦終了。部屋に残っています。ホストが再戦を開始できます。');}}
+ });
+ onlineConn.on('close',()=>{onlinePeerReady=false;onlineStatus('友達との接続が切れました。部屋コードを使って再接続してください。');});
+ onlineConn.on('error',()=>onlineStatus('データ通信でエラーが発生しました。接続をやり直してください。'));
+}
+function onlineStartBattle(){
+ if(!onlineConn||!onlineConn.open||!onlinePeerReady){onlineStatus('友達が接続してから開始してください。');return;}
+ document.getElementById('player-count-select').value='2';renderPlayerSlots();
+ const selectedStage=document.getElementById('online-stage-select').value;const stageKeys=Object.keys(STAGE_DATA);const cpuCount=Math.max(0,Math.min(6,parseInt(document.getElementById('online-cpu-count').value)||0)); const settings={stage:selectedStage==='random'?stageKeys[Math.floor(Math.random()*stageKeys.length)]:selectedStage,stocks:parseInt(document.getElementById('stock-select').value)||3,mode:document.getElementById('online-mode-select').value,char1:document.getElementById('online-my-char')?.value||document.getElementById('char-select-1').value,char2:onlineGuestCharacter,cpuChar:document.getElementById('online-cpu-char')?.value||'usa',cpuCount,cpuLevel:parseInt(document.getElementById('online-cpu-level').value)||6,itemsEnabled:document.getElementById('online-items-select').value!=='off'};
+ settings.startAt=Date.now()+1800; onlineSend({type:'start-battle',settings});onlineLaunchBattle(settings,true);
+}
+function onlineLaunchBattle(settings,host){
+ if(!settings)return;onlineBattle=true;onlineRole=host?'host':'guest';
+ document.getElementById('online-cpu-count-wrap').style.display=host?'block':'none';
+ if(settings.cpuCount!=null)document.getElementById('online-cpu-count-setup').value=String(settings.cpuCount);
+ if(settings.cpuLevel!=null)document.getElementById('cpu-level-select').value=String(settings.cpuLevel);
+ if(settings.itemsEnabled!=null)document.getElementById('items-toggle').value=settings.itemsEnabled?'on':'off';
+ document.getElementById('online-menu').style.display='none';
+ document.getElementById('setup-menu').style.display='flex';
+ document.getElementById('main-menu-container').style.display='none';
+ document.getElementById('player-count-select').value='2';
+ document.getElementById('game-mode-select').value=settings.mode||'free';
+ document.getElementById('stage-select').value=settings.stage||'battle';
+ document.getElementById('stock-select').value=String(settings.stocks||3);
+ renderPlayerSlots();
+ if(settings.char1)document.getElementById('char-select-1').value=settings.char1;
+ if(settings.char2)document.getElementById('char-select-2').value=settings.char2;
+ setupGame();players.forEach(p=>{p.isCPU=p.id>=3;p.facing=p.id===1?1:-1;});
+ if(settings.cpuChar && players[2]){players[2].type=settings.cpuChar;players[2].charData=CHARACTERS[settings.cpuChar];players[2].stats=getCharacterStats(settings.cpuChar);}
+ if(settings.startAt){const wait=Math.max(0,settings.startAt-Date.now());isCountdown=true;countdownStart=Date.now()+wait-3000;}
+ // Both browsers display the same selected stage and settings.
+ onlineStatus(host?'オンライン対戦中（ホスト）':'オンライン対戦中（ゲスト）');
+}
+function onlineApplySnapshot(state){
+ if(!onlineBattle||onlineRole!=='guest'||!state)return;
+ if(Array.isArray(state.players))state.players.forEach(d=>{
+  const p=players.find(q=>q.id===d.id);if(!p)return;
+  Object.keys(d).forEach(k=>{if(k==='id'||k==='team'||k==='charData'||k==='isCPU'||k==='cpuKeys'||k==='stats'||k==='startX'||k==='startY')return; if(['x','y','vx','vy'].includes(k)&&typeof d[k]==='number'&&typeof p[k]==='number')p[k]=p[k]*0.18+d[k]*0.82;else p[k]=d[k];});
+ });
+ if(typeof state.cheatMode === 'boolean') cheatMode = state.cheatMode;
+ if('kangarooAssist' in state) kangarooAssist = state.kangarooAssist;
+ if(Array.isArray(state.battleItems)) battleItems=state.battleItems.map(it=>({...it}));
+ if(Array.isArray(state.particles)) particles=state.particles.map(pt=>({...pt}));
+ if(Array.isArray(state.explosionEffects)) explosionEffects=state.explosionEffects.map(e=>({...e}));
+ if(typeof state.stageInvertedTimer==='number') stageInvertedTimer=state.stageInvertedTimer;
+ if(Array.isArray(state.projectiles)){
+  projectiles=state.projectiles.map(d=>{const q={};Object.keys(d).forEach(k=>{if(k!=='ownerId')q[k]=d[k];});q.owner=players.find(p=>p.id===d.ownerId)||players[0];return q;});
+ }
+ if(state.gameStarted===false&&gameStarted) { /* 終了表示はend-gameメッセージで処理 */ }
+}
+function onlineSyncTick(){
+ if(!onlineBattle||!onlineConn||!onlineConn.open)return;
+ const now=performance.now();
+ if(now-onlineLastInputSent>8){const k={};ONLINE_KEYS.forEach(x=>k[x]=!!keys[x]);onlineSend({type:'input',keys:k});onlineLastInputSent=now;}
+ if(onlineRole==='host'&&now-onlineLastSnapshotSent>8){
+  const plist=players.map(p=>{const d={id:p.id};Object.keys(p).forEach(k=>{
+   if(['id','charData','cpuKeys','isCPU','stats','startX','startY','team'].includes(k))return;
+   const v=p[k];if(v===null||['string','number','boolean'].includes(typeof v))d[k]=v;
+   else if((k==='currentAttack'||k==='ultState')&&v&&typeof v==='object'){try{d[k]=JSON.parse(JSON.stringify(v));}catch(e){}}
+  });d.team=p.team;return d;});
+  const projs=projectiles.map(q=>{const d={ownerId:q.owner&&q.owner.id||1};Object.keys(q).forEach(k=>{if(k==='owner')return;const v=q[k];if(v===null||['string','number','boolean'].includes(typeof v))d[k]=v;else if(k==='hitIds'&&Array.isArray(v))d[k]=v.slice();});return d;});
+  const particleState=particles.slice(-180).map(pt=>({x:pt.x,y:pt.y,vx:pt.vx,vy:pt.vy,alpha:pt.alpha,decay:pt.decay,color:pt.color,radius:pt.radius}));
+  const explosionState=explosionEffects.map(e=>({x:e.x,y:e.y,timer:e.timer,maxR:e.maxR,kind:e.kind||null}));
+  onlineSend({type:'snapshot',state:{players:plist,projectiles:projs,particles:particleState,explosionEffects:explosionState,gameStarted,cheatMode,kangarooAssist,battleItems,stageInvertedTimer}});onlineLastSnapshotSent=now;
+ }
+}
+setInterval(onlineSyncTick,5);
+</script>
+
+
+<script>
+(() => {
+  // 1) Supabase project URL and anon/public key go here. Never put a service_role key in this file.
+  const SUPABASE_URL = 'https://mkkogfpjydhkgzvlluwz.supabase.co';
+  const SUPABASE_ANON_KEY = 'sb_publishable_5eV-A804bjfjzncWhvpT7g_pw5SQZyu';
+  const gate = document.getElementById('auth-gate');
+  const form = document.getElementById('auth-form');
+  const message = document.getElementById('auth-message');
+  const submit = document.getElementById('auth-submit');
+  const userbar = document.getElementById('auth-userbar');
+  const emailLabel = document.getElementById('auth-user-email');
+  const logout = document.getElementById('auth-logout');
+  let supabaseClient = null;
+  function showMessage(text, good=false) { message.textContent=text; message.style.color=good?'#82e0aa':'#f5cba7'; }
+  function showSignedIn(user) {
+    gate.style.display='none';
+    userbar.style.display='flex';
+    emailLabel.textContent=user.email || 'ログイン中';
+  }
+  function showSignedOut() {
+    gate.style.display='flex';
+    userbar.style.display='none';
+  }
+  if (!window.supabase || SUPABASE_URL.startsWith('PASTE_') || SUPABASE_ANON_KEY.startsWith('PASTE_')) {
+    showSignedOut();
+    showMessage('初期設定がまだです。READMEの手順でSupabaseのURLと公開キーを設定してください。');
+    form.addEventListener('submit', e=>{e.preventDefault();showMessage('先にSupabaseのURLと公開キーを設定してください。');});
+    logout.disabled=true;
+    return;
+  }
+  supabaseClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
+  let cloudSaveTimer = null;
+  async function loadCloudSave(user) {
+    if (!user) return;
+    try {
+      const {data,error}=await supabaseClient.from('player_profiles').select('save_data').eq('user_id',user.id).maybeSingle();
+      if (error) { console.warn('クラウドセーブを読み込めません:',error.message); return; }
+      if (data && data.save_data) {
+        // Cloud data takes precedence; save locally too for offline/reload fallback.
+        applyPlayerSave(data.save_data);
+        try { localStorage.setItem(PLAYER_SAVE_KEY, JSON.stringify(currentPlayerSave())); } catch(e) {}
+        if (typeof renderPlayerSlots === 'function') renderPlayerSlots();
+      } else if (typeof currentPlayerSave === 'function') {
+        await saveCloudNow(currentPlayerSave());
+      }
+    } catch(e) { console.warn('クラウドセーブ読み込み失敗',e); }
+  }
+  async function saveCloudNow(save) {
+    const {data:{session}}=await supabaseClient.auth.getSession();
+    if (!session || !session.user) return;
+    const {error}=await supabaseClient.from('player_profiles').upsert({user_id:session.user.id,save_data:save,updated_at:new Date().toISOString()},{onConflict:'user_id'});
+    if (error) console.warn('クラウド保存に失敗:',error.message);
+  }
+  window.pbbCloudSave = (save) => {
+    if (cloudSaveTimer) clearTimeout(cloudSaveTimer);
+    cloudSaveTimer = setTimeout(() => saveCloudNow(save).catch(e=>console.warn(e)), 500);
+  };
+
+  supabaseClient.auth.getSession().then(({data,error})=>{
+    if(error) showMessage('ログイン状態を確認できませんでした：'+error.message);
+    if(data && data.session) { showSignedIn(data.session.user); loadCloudSave(data.session.user); } else showSignedOut();
+  });
+  supabaseClient.auth.onAuthStateChange((_event,session)=>{
+    if(session) { showSignedIn(session.user); setTimeout(()=>loadCloudSave(session.user),0); } else showSignedOut();
+  });
+  form.addEventListener('submit',async e=>{
+    e.preventDefault();
+    const email=document.getElementById('auth-email').value.trim();
+    const password=document.getElementById('auth-password').value;
+    submit.disabled=true;submit.textContent='確認中…';
+    showMessage('ログインを確認しています…');
+    try {
+      const {data,error}=await supabaseClient.auth.signInWithPassword({email,password});
+      if(error) throw error;
+      if(!data.user) throw new Error('ユーザー情報を取得できませんでした。');
+      showMessage('ログインしました。',true); showSignedIn(data.user); await loadCloudSave(data.user);
+    } catch(err) {
+      showMessage('ログインできませんでした。メールアドレスとパスワードを確認してください。\n'+(err && err.message ? err.message : ''));
+    } finally {submit.disabled=false;submit.textContent='ログイン';}
+  });
+  logout.addEventListener('click',async()=>{
+    logout.disabled=true;
+    const {error}=await supabaseClient.auth.signOut();
+    logout.disabled=false;
+    if(error) alert('ログアウトに失敗しました：'+error.message);
+  });
+})();
+</script>
+</body>
+</html>
